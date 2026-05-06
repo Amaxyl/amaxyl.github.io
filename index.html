@@ -1,1029 +1,659 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Amaxyl — Client Portal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Amaxyl — The premium hub for Minecraft utility clients. Kirk Client and Ethane Client.">
+  <title>Amaxyl — Client Hub</title>
+  <link rel="icon" type="image/png" href="https://iili.io/BZn9p0Q.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg:          #06080f;
-      --bg2:         #0b0e1a;
-      --surface:     #0f1322;
-      --surface2:    #161c30;
-      --surface3:    #1e2540;
-      --border:      rgba(100,120,220,0.10);
-      --border2:     rgba(100,120,220,0.22);
-      --border3:     rgba(100,120,220,0.35);
-      --accent:      #4f6ef7;
-      --accent2:     #6b8aff;
-      --accent-glow: rgba(79,110,247,0.25);
-      --ethane:      #9b5cf7;
-      --ethane-glow: rgba(155,92,247,0.2);
-      --text:        #dde2f5;
-      --text2:       #7a85ad;
-      --text3:       #44506e;
-      --success:     #3dd68c;
-      --error:       #f0476b;
-      --warn:        #f5a623;
-      --discord:     #5865f2;
-      --r:           12px;
-      --r-sm:        8px;
+      --bg:        #080a0f;
+      --surface:   rgba(255,255,255,0.03);
+      --surface2:  rgba(255,255,255,0.055);
+      --border:    rgba(255,255,255,0.08);
+      --border2:   rgba(255,255,255,0.13);
+      --text:      rgba(255,255,255,0.92);
+      --muted:     rgba(255,255,255,0.45);
+      --faint:     rgba(255,255,255,0.18);
+      --accent:    #7c6aff;
+      --accent2:   #a78bfa;
+      --radius:    16px;
+      --radius-lg: 24px;
+      /* Kirk */
+      --kirk-a:    #f59e0b;
+      --kirk-b:    #ef4444;
+      /* Ethane */
+      --eth-a:     #00aaff;
+      --eth-b:     #4dcfff;
     }
 
-    html, body { height: 100%; }
+    html { scroll-behavior: smooth; }
 
     body {
-      min-height: 100vh;
+      font-family: 'DM Sans', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
       overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
+      line-height: 1.65;
     }
 
-    /* ── ANIMATED BACKGROUND ──────────────────────────────────── */
-    .bg-canvas {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      overflow: hidden;
+    /* ── BACKDROP ──────────────────────────────────────────── */
+    .backdrop {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
     }
-    .bg-orb {
-      position: absolute; border-radius: 50%;
-      filter: blur(80px); opacity: 0.5;
-      animation: drift 20s ease-in-out infinite alternate;
+    .bd-wash {
+      position: absolute;
+      width: 200%; height: 200%;
+      left: -50%; top: -50%;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(124,106,255,0.10) 0%, transparent 45%),
+        radial-gradient(circle at 75% 65%, rgba(100,80,255,0.07) 0%, transparent 45%),
+        radial-gradient(circle at 50% 100%, rgba(60,40,160,0.08) 0%, transparent 40%);
+      animation: bdFloat 28s ease-in-out infinite;
     }
-    .bg-orb-1 {
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(79,110,247,0.15), transparent 70%);
-      top: -200px; left: -100px;
-      animation-duration: 18s;
+    @keyframes bdFloat {
+      0%,100% { transform: translate(0,0); }
+      33%      { transform: translate(-2%, 3%); }
+      66%      { transform: translate(3%, -2%); }
     }
-    .bg-orb-2 {
-      width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(155,92,247,0.12), transparent 70%);
-      bottom: -150px; right: -100px;
-      animation-duration: 24s; animation-delay: -8s;
-    }
-    .bg-orb-3 {
-      width: 300px; height: 300px;
-      background: radial-gradient(circle, rgba(79,110,247,0.08), transparent 70%);
-      top: 50%; left: 50%;
-      animation-duration: 30s; animation-delay: -4s;
-    }
-    @keyframes drift {
-      from { transform: translate(0, 0) scale(1); }
-      to   { transform: translate(40px, 30px) scale(1.05); }
-    }
-    .bg-grid {
+    .bd-grid {
       position: absolute; inset: 0;
       background-image:
-        linear-gradient(rgba(79,110,247,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(79,110,247,0.025) 1px, transparent 1px);
-      background-size: 52px 52px;
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(circle at 50% 30%, rgba(0,0,0,0.8), transparent 65%);
+    }
+    .bd-grain {
+      position: absolute; inset: 0; opacity: 0.045;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+      animation: grainShift 10s linear infinite;
+    }
+    @keyframes grainShift { to { transform: translate3d(-5%,-4%,0); } }
+    .bd-vignette {
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 50%, transparent 25%, rgba(0,0,0,0.75) 100%);
     }
 
-    /* ── NAV ───────────────────────────────────────────────────── */
+    /* ── NAV ────────────────────────────────────────────────── */
     nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      height: 58px;
-      display: flex; align-items: center; padding: 0 28px;
-      background: rgba(6,8,15,0.75);
-      backdrop-filter: blur(24px);
-      border-bottom: 1px solid var(--border);
+      position: fixed; top: 1rem; left: 0; right: 0; z-index: 200;
+      display: flex; justify-content: center; padding: 0 1.5rem; pointer-events: none;
+    }
+    .nav-inner {
+      pointer-events: auto;
+      display: flex; align-items: center; justify-content: space-between;
+      width: min(1100px, 100%);
+      background: rgba(8,10,15,0.78);
+      border: 1px solid var(--border2);
+      border-radius: 999px;
+      padding: 0.55rem 0.7rem 0.55rem 1.25rem;
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      box-shadow: 0 4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,106,255,0.06) inset;
     }
     .nav-brand {
-      display: flex; align-items: center; gap: 10px;
-      text-decoration: none;
+      display: flex; align-items: center; gap: 0.6rem;
+      text-decoration: none; color: inherit;
     }
-    .nav-logo {
-      width: 30px; height: 30px;
-      background: linear-gradient(135deg, var(--accent), var(--ethane));
-      border-radius: 9px;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 16px rgba(79,110,247,0.4);
+    .nav-brand img {
+      width: 30px; height: 30px; border-radius: 8px;
     }
-    .nav-logo svg { width: 18px; height: 18px; fill: white; }
-    .nav-wordmark {
-      font-size: 17px; font-weight: 700; letter-spacing: -0.03em;
-      color: var(--text);
+    .nav-brand strong {
+      font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;
+      letter-spacing: -0.01em;
+      background: linear-gradient(135deg, #fff 50%, var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
-    .nav-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--success);
-      box-shadow: 0 0 8px var(--success);
-      margin-left: 2px;
-      animation: pulse 2s ease-in-out infinite;
+    .nav-links {
+      display: flex; align-items: center; gap: 0.3rem; list-style: none;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+    .nav-links a {
+      font-size: 0.88rem; color: var(--muted); text-decoration: none;
+      padding: 0.4rem 0.85rem; border-radius: 999px;
+      transition: color 0.2s, background 0.2s;
     }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    .nav-ctas { display: flex; gap: 0.5rem; align-items: center; }
+    .btn-nav {
+      font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500;
+      padding: 0.5rem 1.1rem; border-radius: 999px; text-decoration: none;
+      border: 1px solid var(--border2); color: var(--muted);
+      background: transparent; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-nav:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+    .btn-nav.primary {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+      box-shadow: 0 0 24px rgba(124,106,255,0.3);
+    }
+    .btn-nav.primary:hover { background: var(--accent2); box-shadow: 0 0 32px rgba(124,106,255,0.45); }
 
-    /* ── LAYOUT ────────────────────────────────────────────────── */
-    main {
-      position: relative; z-index: 1;
-      min-height: 100vh;
-      display: flex; align-items: center; justify-content: center;
-      padding: 76px 20px 48px;
-    }
+    /* ── SHELL ──────────────────────────────────────────────── */
+    .shell { max-width: 1100px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 10; }
 
-    /* ── CARD ──────────────────────────────────────────────────── */
-    .card {
-      width: 100%; max-width: 448px;
-      background: var(--surface);
-      border: 1px solid var(--border2);
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow:
-        0 0 0 1px rgba(255,255,255,0.02),
-        0 24px 64px rgba(0,0,0,0.6),
-        0 0 80px rgba(79,110,247,0.06);
-      animation: slideUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
+    /* ── HERO ────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+      align-items: center; text-align: center;
+      padding: 8rem 2rem 5rem;
     }
-    .account-card { max-width: 600px; }
-    @keyframes slideUp {
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: 'DM Mono', monospace; font-size: 0.75rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent2);
+      border: 1px solid rgba(124,106,255,0.25); border-radius: 999px;
+      padding: 0.35rem 1rem; background: rgba(124,106,255,0.07);
+      margin-bottom: 2rem;
+      animation: fadeUp 0.7s ease both;
+    }
+    .hero-eyebrow::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent2); animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+    .hero h1 {
+      font-family: 'Syne', sans-serif; font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 800; line-height: 1.05; letter-spacing: -0.03em;
+      margin-bottom: 1.5rem; max-width: 900px;
+      animation: fadeUp 0.7s 0.1s ease both;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, #e879f9 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-sub {
+      font-size: 1.1rem; color: var(--muted); max-width: 560px;
+      margin-bottom: 2.5rem; line-height: 1.7;
+      animation: fadeUp 0.7s 0.2s ease both;
+    }
+    .hero-ctas {
+      display: flex; gap: 0.75rem; align-items: center;
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+    .btn-primary {
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.95rem;
+      padding: 0.8rem 2rem; border-radius: 999px; text-decoration: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border: none; cursor: pointer;
+      box-shadow: 0 0 30px rgba(124,106,255,0.35);
+      transition: all 0.25s; display: inline-block;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 45px rgba(124,106,255,0.5); }
+    .btn-ghost {
+      font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.95rem;
+      padding: 0.8rem 2rem; border-radius: 999px; text-decoration: none;
+      border: 1px solid var(--border2); color: var(--muted);
+      background: transparent; cursor: pointer;
+      transition: all 0.2s; display: inline-block;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.2); background: var(--surface); }
+
+    .hero-meta {
+      display: flex; gap: 2rem; margin-top: 2.5rem; color: var(--faint); font-size: 0.82rem;
+      animation: fadeUp 0.7s 0.4s ease both;
+    }
+    .hero-meta span strong { color: var(--muted); font-weight: 500; }
+
+    @keyframes fadeUp {
       from { opacity: 0; transform: translateY(20px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* card regions */
-    .card-head {
-      padding: 26px 28px 22px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(79,110,247,0.05) 0%, transparent 100%);
+    /* ── SECTION ────────────────────────────────────────────── */
+    section { position: relative; z-index: 10; }
+    .section { padding: 5rem 0; }
+    .section-head { text-align: center; margin-bottom: 3.5rem; }
+    .section-tag {
+      font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent2);
+      display: block; margin-bottom: 0.75rem;
     }
-    .card-logo-row {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    .section-head h2 {
+      font-family: 'Syne', sans-serif; font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.75rem;
     }
-    .card-logo-mark {
-      width: 34px; height: 34px;
-      background: linear-gradient(135deg, var(--accent), var(--ethane));
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 16px rgba(79,110,247,0.3);
-    }
-    .card-logo-mark svg { width: 18px; height: 18px; fill: white; }
-    .card-logo-name { font-size: 19px; font-weight: 700; letter-spacing: -0.03em; }
-    .card-title { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
-    .card-sub   { font-size: 13px; color: var(--text2); margin-top: 3px; }
-    .card-body  { padding: 24px 28px; }
-    .card-foot  {
-      padding: 14px 28px;
-      border-top: 1px solid var(--border);
-      text-align: center;
-    }
-    .card-foot a { color: var(--accent2); font-size: 12px; text-decoration: none; }
-    .card-foot a:hover { text-decoration: underline; }
+    .section-lead { font-size: 1rem; color: var(--muted); max-width: 520px; margin: 0 auto; }
 
-    /* ── TABS ──────────────────────────────────────────────────── */
-    .tabs {
-      display: flex; gap: 3px;
-      background: var(--bg2);
+    /* ── CLIENT CARDS ─────────────────────────────────────────── */
+    .clients-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;
+    }
+
+    .client-card {
+      border-radius: var(--radius-lg);
       border: 1px solid var(--border);
-      border-radius: var(--r-sm);
-      padding: 3px;
-      margin-bottom: 22px;
+      overflow: hidden;
+      position: relative;
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+      cursor: default;
     }
-    .tab-btn {
-      flex: 1; padding: 7px 12px;
-      border: none; border-radius: 5px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: all 0.15s;
-      background: transparent; color: var(--text3);
+    .client-card:hover { transform: translateY(-4px); }
+
+    /* Kirk card */
+    .client-card.kirk {
+      background: linear-gradient(145deg, rgba(245,158,11,0.05) 0%, rgba(239,68,68,0.03) 100%);
     }
-    .tab-btn.active {
-      background: var(--surface2);
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    .client-card.kirk:hover {
+      border-color: rgba(245,158,11,0.3);
+      box-shadow: 0 20px 60px rgba(245,158,11,0.12), 0 0 0 1px rgba(245,158,11,0.12);
+    }
+    /* Ethane card */
+    .client-card.ethane {
+      background: linear-gradient(145deg, rgba(0,170,255,0.05) 0%, rgba(77,207,255,0.03) 100%);
+    }
+    .client-card.ethane:hover {
+      border-color: rgba(0,170,255,0.3);
+      box-shadow: 0 20px 60px rgba(0,170,255,0.12), 0 0 0 1px rgba(0,170,255,0.12);
     }
 
-    /* ── FORM ──────────────────────────────────────────────────── */
-    .field { margin-bottom: 14px; }
-    label {
-      display: block;
-      font-size: 11px; font-weight: 600;
-      color: var(--text3); letter-spacing: 0.07em;
-      text-transform: uppercase; margin-bottom: 5px;
-    }
-    input[type=text], input[type=password], input[type=email] {
-      width: 100%; padding: 10px 13px;
-      background: var(--bg2);
-      border: 1px solid var(--border2);
-      border-radius: var(--r-sm);
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13.5px;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(79,110,247,0.15);
-    }
-    input::placeholder { color: var(--text3); }
-    input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .client-card-inner { padding: 2rem; }
 
-    /* ── BUTTONS ───────────────────────────────────────────────── */
-    .btn {
-      width: 100%; padding: 11px 16px;
-      border: none; border-radius: var(--r-sm);
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: all 0.15s;
-      letter-spacing: -0.01em;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
+    .client-logo-wrap {
+      width: 72px; height: 72px; border-radius: 18px; overflow: hidden;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      flex-shrink: 0;
     }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+    .client-logo-wrap img { width: 100%; height: 100%; object-fit: cover; }
 
-    .btn-primary {
-      background: var(--accent); color: #fff;
-      box-shadow: 0 4px 20px rgba(79,110,247,0.35);
-    }
-    .btn-primary:hover:not(:disabled) {
-      background: var(--accent2);
-      box-shadow: 0 6px 24px rgba(79,110,247,0.45);
-      transform: translateY(-1px);
-    }
-
-    .btn-discord {
-      background: var(--discord); color: #fff;
-      box-shadow: 0 4px 16px rgba(88,101,242,0.3);
-      text-decoration: none;
-    }
-    .btn-discord:hover { background: #4752c4; transform: translateY(-1px); }
-
-    .btn-ghost {
-      background: var(--surface2); color: var(--text2);
-      border: 1px solid var(--border2);
-    }
-    .btn-ghost:hover { color: var(--text); border-color: var(--border3); }
-
-    .btn-danger {
-      background: rgba(240,71,107,0.1); color: var(--error);
-      border: 1px solid rgba(240,71,107,0.2);
-    }
-    .btn-danger:hover { background: rgba(240,71,107,0.18); }
-
-    .btn-sm { width: auto; padding: 7px 13px; font-size: 12px; }
-
-    /* ── DIVIDER ───────────────────────────────────────────────── */
-    .divider {
-      display: flex; align-items: center; gap: 10px;
-      margin: 18px 0;
-      color: var(--text3); font-size: 11px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.08em;
-    }
-    .divider::before, .divider::after {
-      content: ''; flex: 1; height: 1px; background: var(--border);
-    }
-
-    /* ── MESSAGES ──────────────────────────────────────────────── */
-    .msg {
-      padding: 10px 13px; border-radius: var(--r-sm);
-      font-size: 13px; margin-bottom: 14px; display: none;
-      font-family: 'Space Grotesk', sans-serif;
-    }
-    .msg.error   { background: rgba(240,71,107,0.08); color: var(--error);   border: 1px solid rgba(240,71,107,0.2); display: block; }
-    .msg.success { background: rgba(61,214,140,0.08); color: var(--success); border: 1px solid rgba(61,214,140,0.2); display: block; }
-    .msg.warn    { background: rgba(245,166,35,0.08); color: var(--warn);    border: 1px solid rgba(245,166,35,0.2); display: block; }
-    .msg.info    { background: rgba(79,110,247,0.08); color: var(--accent2); border: 1px solid rgba(79,110,247,0.2); display: block; }
-
-    /* ── SPINNER ───────────────────────────────────────────────── */
-    .spinner-wrap {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 16px; padding: 80px 0;
-    }
-    .spinner {
-      width: 36px; height: 36px;
-      border: 2px solid var(--border2);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    .spinner-text { font-size: 13px; color: var(--text3); }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ══ ACCOUNT PAGE ════════════════════════════════════════════ */
-
-    /* profile strip */
-    .profile-strip {
-      display: flex; align-items: center; gap: 14px;
-      padding: 20px 28px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(79,110,247,0.04) 0%, transparent 100%);
-    }
-    .avatar-wrap { position: relative; flex-shrink: 0; }
-    .avatar-img {
-      width: 52px; height: 52px; border-radius: 50%;
-      border: 2px solid var(--border3);
-      background: var(--surface2);
-    }
-    .discord-badge-pip {
-      position: absolute; bottom: -1px; right: -1px;
-      width: 18px; height: 18px; border-radius: 50%;
-      background: var(--discord); border: 2px solid var(--surface);
+    /* Ethane logo bg */
+    .ethane .client-logo-wrap {
+      background: #03060f;
       display: flex; align-items: center; justify-content: center;
     }
-    .discord-badge-pip svg { width: 10px; height: 10px; fill: white; }
-    .profile-name { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
-    .profile-meta { font-size: 12px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
-    .profile-actions { margin-left: auto; display: flex; gap: 8px; }
+    .ethane .client-logo-wrap img { width: 85%; height: 85%; object-fit: contain; }
 
-    /* sections */
-    .acct-section {
-      padding: 20px 28px;
-      border-bottom: 1px solid var(--border);
+    .client-name {
+      font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800;
+      letter-spacing: -0.02em; margin-bottom: 0.4rem;
     }
-    .acct-section:last-child { border-bottom: none; }
-    .section-label {
-      font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; color: var(--text3);
-      margin-bottom: 14px;
+    .kirk .client-name { color: #f59e0b; }
+    .ethane .client-name { color: #00aaff; }
+
+    .client-tag {
+      display: inline-block; font-family: 'DM Mono', monospace; font-size: 0.68rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.25rem 0.7rem; border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    .kirk .client-tag { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+    .ethane .client-tag { background: rgba(0,170,255,0.1); color: #4dcfff; border: 1px solid rgba(0,170,255,0.2); }
+
+    .client-desc {
+      font-size: 0.95rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.7;
     }
 
-    /* subscriptions */
-    .sub-grid { display: flex; flex-direction: column; gap: 8px; }
-    .sub-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 13px 15px; border-radius: var(--r-sm);
-      background: var(--bg2); border: 1px solid var(--border);
-      transition: border-color 0.15s;
+    .client-chips {
+      display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.75rem;
     }
-    .sub-row:hover { border-color: var(--border2); }
-    .sub-icon {
-      width: 34px; height: 34px; border-radius: 9px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px; flex-shrink: 0;
+    .chip {
+      font-size: 0.78rem; padding: 0.3rem 0.75rem; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--faint); background: var(--surface);
     }
-    .sub-icon.kirk   { background: rgba(79,110,247,0.14); }
-    .sub-icon.ethane { background: rgba(155,92,247,0.14); }
-    .sub-info { flex: 1; min-width: 0; }
-    .sub-name { font-size: 13.5px; font-weight: 700; }
-    .sub-detail {
-      font-size: 11.5px; color: var(--text3); margin-top: 1px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .sub-badge {
-      font-size: 10.5px; font-weight: 700; padding: 3px 9px;
-      border-radius: 20px; letter-spacing: 0.04em; white-space: nowrap;
-    }
-    .sub-badge.active   { background: rgba(61,214,140,0.1); color: var(--success); border: 1px solid rgba(61,214,140,0.2); }
-    .sub-badge.inactive { background: rgba(255,255,255,0.04); color: var(--text3); border: 1px solid var(--border); }
-    .sub-badge.lifetime { background: rgba(79,110,247,0.1); color: var(--accent2); border: 1px solid rgba(79,110,247,0.2); }
 
-    /* discord */
-    .discord-box {
-      display: flex; align-items: center; gap: 12px;
-      padding: 13px 15px; border-radius: var(--r-sm);
-      background: var(--bg2); border: 1px solid var(--border);
+    .client-bottom {
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid var(--border); padding-top: 1.5rem; margin-top: 0.5rem;
     }
-    .discord-avatar {
-      width: 34px; height: 34px; border-radius: 50%;
-      background: var(--surface2); flex-shrink: 0;
+    .client-price {
+      font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800;
     }
-    .discord-info { flex: 1; min-width: 0; }
-    .discord-name { font-size: 13.5px; font-weight: 600; }
-    .discord-id { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+    .kirk .client-price { color: #f59e0b; }
+    .ethane .client-price { color: #00aaff; }
+    .client-price-sub { font-size: 0.78rem; color: var(--faint); font-family: 'DM Mono', monospace; }
 
-    /* hwid */
-    .hwid-status {
-      display: flex; align-items: center; gap: 10px;
-      padding: 11px 13px; border-radius: var(--r-sm);
-      background: var(--bg2); border: 1px solid var(--border);
-      margin-bottom: 10px;
+    .btn-kirk {
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.88rem;
+      padding: 0.7rem 1.5rem; border-radius: 999px; text-decoration: none;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: #fff; border: none; cursor: pointer;
+      box-shadow: 0 0 24px rgba(245,158,11,0.3);
+      transition: all 0.25s; display: inline-block;
     }
-    .hwid-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .hwid-dot.set   { background: var(--success); box-shadow: 0 0 6px var(--success); }
-    .hwid-dot.unset { background: var(--text3); }
-    .hwid-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text2); flex: 1; }
-    .inline-row { display: flex; gap: 8px; }
-    .inline-row input { flex: 1; }
-    .help-text { font-size: 11.5px; color: var(--text3); margin-top: 7px; }
+    .btn-kirk:hover { transform: translateY(-1px); box-shadow: 0 0 36px rgba(245,158,11,0.45); }
 
-    /* redeem */
-    .redeem-row { display: flex; gap: 8px; }
-    .redeem-row input { flex: 1; font-size: 12px; }
-
-    /* downloads */
-    .dl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .dl-btn {
-      display: flex; align-items: center; gap: 10px;
-      padding: 13px 15px; border-radius: var(--r-sm);
-      background: var(--bg2); border: 1px solid var(--border);
-      cursor: pointer; transition: all 0.15s;
-      text-decoration: none; color: var(--text);
+    .btn-ethane {
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.88rem;
+      padding: 0.7rem 1.5rem; border-radius: 999px; text-decoration: none;
+      background: linear-gradient(135deg, #00aaff, #4dcfff);
+      color: #fff; border: none; cursor: pointer;
+      box-shadow: 0 0 24px rgba(0,170,255,0.3);
+      transition: all 0.25s; display: inline-block;
     }
-    .dl-btn:hover:not(.disabled) {
-      border-color: var(--border3);
-      background: var(--surface2);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    .btn-ethane:hover { transform: translateY(-1px); box-shadow: 0 0 36px rgba(0,170,255,0.45); }
+
+    .coming-soon-badge {
+      font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 0.45rem 1rem; border-radius: 999px;
+      border: 1px solid rgba(0,170,255,0.25); color: #4dcfff;
+      background: rgba(0,170,255,0.07); cursor: not-allowed;
     }
-    .dl-btn.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
-    .dl-icon { font-size: 18px; }
-    .dl-info { display: flex; flex-direction: column; }
-    .dl-name { font-size: 13px; font-weight: 700; }
-    .dl-sub  { font-size: 11px; color: var(--text3); font-weight: 400; margin-top: 1px; }
 
-    /* ── PAGES ─────────────────────────────────────────────────── */
-    .page { display: none; }
-    .page.active { display: block; }
+    /* Card glow strips */
+    .client-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      opacity: 0.6;
+    }
+    .kirk::before { background: linear-gradient(90deg, transparent, #f59e0b, #ef4444, transparent); }
+    .ethane::before { background: linear-gradient(90deg, transparent, #00aaff, #4dcfff, transparent); }
 
-    /* ── RESPONSIVE ────────────────────────────────────────────── */
+    /* ── FEATURES ──────────────────────────────────────────── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+    }
+    .feat-card {
+      padding: 1.5rem; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feat-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .feat-icon { font-size: 1.4rem; margin-bottom: 0.75rem; }
+    .feat-card h3 {
+      font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem;
+    }
+    .feat-card p { font-size: 0.87rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── STATS ──────────────────────────────────────────────── */
+    .stats-strip {
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 3rem 0;
+    }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4,1fr); text-align: center; gap: 2rem;
+    }
+    .stat-num {
+      font-family: 'Syne', sans-serif; font-size: 2.4rem; font-weight: 800;
+      background: linear-gradient(135deg, #fff 40%, var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 0.3rem;
+    }
+    .stat-label {
+      font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--faint);
+    }
+
+    /* ── CTA SECTION ────────────────────────────────────────── */
+    .cta-section {
+      text-align: center; padding: 6rem 2rem;
+    }
+    .cta-section h2 {
+      font-family: 'Syne', sans-serif; font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 800; letter-spacing: -0.03em; margin-bottom: 1rem;
+    }
+    .cta-section p { color: var(--muted); margin-bottom: 2.5rem; font-size: 1rem; }
+    .cta-btns { display: flex; gap: 0.75rem; justify-content: center; }
+
+    /* ── FOOTER ─────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border); padding: 2.5rem 0;
+      position: relative; z-index: 10;
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .footer-brand {
+      display: flex; align-items: center; gap: 0.5rem;
+      text-decoration: none; color: var(--muted);
+    }
+    .footer-brand img { width: 24px; height: 24px; border-radius: 6px; opacity: 0.7; }
+    .footer-brand span { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a { font-size: 0.83rem; color: var(--faint); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--muted); }
+    .footer-copy { font-size: 0.78rem; color: var(--faint); font-family: 'DM Mono', monospace; }
+
+    /* ── DIVIDER ─────────────────────────────────────────────── */
+    .striped {
+      background: repeating-linear-gradient(
+        -45deg, transparent, transparent 20px,
+        rgba(255,255,255,0.012) 20px, rgba(255,255,255,0.012) 21px
+      );
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .clients-grid { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2,1fr); }
+      .nav-links { display: none; }
+      .hero-ctas { flex-direction: column; align-items: stretch; }
+      .btn-primary, .btn-ghost { text-align: center; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+      .cta-btns { flex-direction: column; align-items: stretch; }
+    }
     @media (max-width: 480px) {
-      .card-head, .card-body { padding: 18px 20px; }
-      .profile-strip, .acct-section { padding: 16px 20px; }
-      .card-foot { padding: 12px 20px; }
-      .dl-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2,1fr); gap: 1.5rem; }
+      .hero-meta { flex-direction: column; gap: 0.5rem; align-items: center; }
     }
   </style>
 </head>
 <body>
 
-<div class="bg-canvas">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="bg-orb bg-orb-3"></div>
-  <div class="bg-grid"></div>
-</div>
+  <div class="backdrop" aria-hidden="true">
+    <div class="bd-wash"></div>
+    <div class="bd-grid"></div>
+    <div class="bd-grain"></div>
+    <div class="bd-vignette"></div>
+  </div>
 
-<nav>
-  <a class="nav-brand" href="#">
-    <div class="nav-logo">
-      <svg viewBox="0 0 36 36"><path d="M18 4L32 12V24L18 32L4 24V12L18 4Z" opacity="0.9"/><path d="M18 10L12 22H15L16.5 19H21.5L23 22H26L20 10H18ZM17.5 17L19 13.5L20.5 17H17.5Z" fill="#4f6ef7"/></svg>
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">
+        <img src="https://iili.io/BZn9p0Q.png" alt="Amaxyl">
+        <strong>Amaxyl</strong>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#clients">Clients</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="https://discord.gg/yttpE8z636" target="_blank" rel="noopener">Discord</a></li>
+      </ul>
+      <div class="nav-ctas">
+        <a href="account.html" class="btn-nav">Sign in</a>
+        <a href="account.html" class="btn-nav primary">Get started →</a>
+      </div>
     </div>
-    <span class="nav-wordmark">Amaxyl</span>
-    <div class="nav-dot"></div>
-  </a>
-</nav>
+  </nav>
 
-<main>
+  <!-- HERO -->
+  <section class="hero">
+    <span class="hero-eyebrow">Premium Minecraft Client Hub</span>
+    <h1>Your clients.<br><em>One account.</em></h1>
+    <p class="hero-sub">
+      Amaxyl is the unified hub for Kirk and Ethane — two clients, one dashboard, zero headaches. Buy once, access everywhere, never lose your license.
+    </p>
+    <div class="hero-ctas">
+      <a href="#clients" class="btn-primary">Browse clients</a>
+      <a href="account.html" class="btn-ghost">Sign in</a>
+    </div>
+    <div class="hero-meta">
+      <span><strong>Sellhub</strong> checkout</span>
+      <span><strong>Lifetime</strong> access</span>
+      <span><strong>Stripe-backed</strong> payments</span>
+      <span><strong>Discord</strong> integration</span>
+    </div>
+  </section>
 
-  <!-- LOADING -->
-  <div id="pageLoading">
-    <div class="spinner-wrap">
-      <div class="spinner"></div>
-      <div class="spinner-text">Connecting…</div>
+  <!-- CLIENTS -->
+  <section class="section" id="clients">
+    <div class="shell">
+      <div class="section-head">
+        <span class="section-tag">Our Clients</span>
+        <h2>Two clients. Both built to win.</h2>
+        <p class="section-lead">Each client is maintained directly by Amaxyl — one account manages access to both.</p>
+      </div>
+
+      <div class="clients-grid">
+
+        <!-- KIRK -->
+        <div class="client-card kirk">
+          <div class="client-card-inner">
+            <div class="client-logo-wrap">
+              <img src="https://iili.io/fkPS4Yg.png" alt="Kirk Client">
+            </div>
+            <div class="client-name">Kirk Client</div>
+            <span class="client-tag">Available now</span>
+            <p class="client-desc">
+              Kirk blends a clean, low-overhead UI with a bypass stack that evolves as anticheats shift. Fast release cadence, Stripe-backed checkout, and a team that doesn't disappear post-launch.
+            </p>
+            <div class="client-chips">
+              <span class="chip">Utility client</span>
+              <span class="chip">Frequent updates</span>
+              <span class="chip">Low overhead UI</span>
+              <span class="chip">Advanced bypass</span>
+            </div>
+            <div class="client-bottom">
+              <div>
+                <div class="client-price">$9.99</div>
+                <div class="client-price-sub">Lifetime access · updates included</div>
+              </div>
+              <a href="https://kirk-client.sellhub.cx/product/KIRKCLIENT" target="_blank" rel="noopener" class="btn-kirk">Get Kirk →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ETHANE -->
+        <div class="client-card ethane">
+          <div class="client-card-inner">
+            <div class="client-logo-wrap">
+              <img src="https://iili.io/BZn9p0Q.png" alt="Ethane Client" onerror="this.src='https://iili.io/BZn9p0Q.png'">
+            </div>
+            <div class="client-name">Ethane Client</div>
+            <span class="client-tag">Coming soon</span>
+            <p class="client-desc">
+              Ethane is in active development — a next-generation Minecraft utility client built from the ground up with a modern architecture, obsessive motion design, and ruthless precision.
+            </p>
+            <div class="client-chips">
+              <span class="chip">Next-gen client</span>
+              <span class="chip">Modern stack</span>
+              <span class="chip">In development</span>
+              <span class="chip">Notify on launch</span>
+            </div>
+            <div class="client-bottom">
+              <div>
+                <div class="client-price" style="font-size:1.1rem;color:var(--faint)">TBA</div>
+                <div class="client-price-sub">Launching soon</div>
+              </div>
+              <span class="coming-soon-badge">Coming Soon</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats-strip striped" style="position:relative;z-index:10;">
+    <div class="shell">
+      <div class="stats-grid">
+        <div>
+          <div class="stat-num">2</div>
+          <div class="stat-label">Premium Clients</div>
+        </div>
+        <div>
+          <div class="stat-num">$9.99</div>
+          <div class="stat-label">Entry Price</div>
+        </div>
+        <div>
+          <div class="stat-num">∞</div>
+          <div class="stat-label">Lifetime Access</div>
+        </div>
+        <div>
+          <div class="stat-num">24/7</div>
+          <div class="stat-label">Discord Support</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- AUTH CARD -->
-  <div class="card" id="pageAuth" style="display:none;">
-    <div class="card-head">
-      <div class="card-logo-row">
-        <div class="card-logo-mark">
-          <svg viewBox="0 0 36 36"><path d="M18 4L32 12V24L18 32L4 24V12L18 4Z" opacity="0.9"/><path d="M18 10L12 22H15L16.5 19H21.5L23 22H26L20 10H18ZM17.5 17L19 13.5L20.5 17H17.5Z" fill="#4f6ef7"/></svg>
-        </div>
-        <span class="card-logo-name">Amaxyl</span>
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <div class="shell">
+      <div class="section-head">
+        <span class="section-tag">Platform</span>
+        <h2>Built around your security.</h2>
+        <p class="section-lead">Everything from checkout to access management is handled cleanly — no sketchy flows, no confusion.</p>
       </div>
-      <div id="authTitle" class="card-title">Welcome back</div>
-      <div id="authSub" class="card-sub">Sign in to manage your subscriptions.</div>
+      <div class="features-grid">
+        <div class="feat-card">
+          <div class="feat-icon">🔒</div>
+          <h3>One Account, All Clients</h3>
+          <p>Your Amaxyl account holds access to everything. No re-buying, no re-linking — sign in and your licenses are right there.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">⚡</div>
+          <h3>Instant Key Delivery</h3>
+          <p>Purchase through Sellhub, redeem in your account. Keys land immediately — no waiting for a human to fulfill anything.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">🛡️</div>
+          <h3>Stripe-Backed Payments</h3>
+          <p>Card data goes through Stripe infrastructure directly. We do not process or store sensitive payment details ourselves.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">🔗</div>
+          <h3>Discord Integration</h3>
+          <p>Link your Discord and get roles, support channels, and community access automatically managed — set once, forget it.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">📱</div>
+          <h3>2FA Support</h3>
+          <p>Enable authenticator-app 2FA on your account for an extra layer of security. Scan a QR, you're protected in 30 seconds.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon">🔄</div>
+          <h3>Evolving Bypass Stack</h3>
+          <p>Anticheats shift constantly. Our clients are tuned iteratively so your setup stays usable when the detection meta flips.</p>
+        </div>
+      </div>
     </div>
-    <div class="card-body">
+  </section>
 
-      <div class="tabs">
-        <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Sign In</button>
-        <button class="tab-btn" id="tabRegister" onclick="switchTab('register')">Create Account</button>
+  <!-- CTA -->
+  <section class="cta-section" style="position:relative;z-index:10;">
+    <div class="shell">
+      <h2>Ready to get started?</h2>
+      <p>Create an account, grab a license, and you're in. Takes under two minutes.</p>
+      <div class="cta-btns">
+        <a href="account.html" class="btn-primary">Create account →</a>
+        <a href="#clients" class="btn-ghost">View clients</a>
       </div>
+    </div>
+  </section>
 
-      <div class="msg" id="authMsg"></div>
-
-      <!-- LOGIN -->
-      <div id="formLogin" class="page active">
-        <div class="field">
-          <label>Username</label>
-          <input type="text" id="loginUsername" placeholder="your_username" autocomplete="username" />
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
-        </div>
-        <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
-
-        <div class="divider">or</div>
-
-        <a class="btn btn-discord" id="discordLoginBtn" href="#">
-          <svg viewBox="0 0 127.14 96.36" width="15" height="15" fill="currentColor">
-            <path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/>
-          </svg>
-          Continue with Discord
+  <!-- FOOTER -->
+  <footer>
+    <div class="shell">
+      <div class="footer-inner">
+        <a href="#" class="footer-brand">
+          <img src="https://iili.io/BZn9p0Q.png" alt="">
+          <span>Amaxyl</span>
         </a>
-      </div>
-
-      <!-- REGISTER -->
-      <div id="formRegister" class="page">
-        <div class="field">
-          <label>Username</label>
-          <input type="text" id="regUsername" placeholder="choose_a_username" autocomplete="username" />
+        <div class="footer-links">
+          <a href="#clients">Clients</a>
+          <a href="#features">Features</a>
+          <a href="account.html">Account</a>
+          <a href="https://discord.gg/yttpE8z636" target="_blank" rel="noopener">Discord</a>
+          <a href="https://kirk-client.sellhub.cx/product/KIRKCLIENT" target="_blank" rel="noopener">Sellhub</a>
         </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email" />
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <input type="password" id="regPassword" placeholder="min 8 characters" autocomplete="new-password" />
-        </div>
-        <div class="field">
-          <label>Confirm Password</label>
-          <input type="password" id="regPasswordConfirm" placeholder="••••••••" autocomplete="new-password" />
-        </div>
-        <button class="btn btn-primary" id="registerBtn" onclick="doRegister()">Create Account</button>
-
-        <div class="divider">or</div>
-
-        <a class="btn btn-discord" id="discordRegBtn" href="#">
-          <svg viewBox="0 0 127.14 96.36" width="15" height="15" fill="currentColor">
-            <path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/>
-          </svg>
-          Sign up with Discord
-        </a>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ACCOUNT CARD -->
-  <div class="card account-card" id="pageAccount" style="display:none;">
-
-    <!-- PROFILE -->
-    <div class="profile-strip">
-      <div class="avatar-wrap">
-        <img class="avatar-img" id="acctAvatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" />
-        <div class="discord-badge-pip" id="discordBadge" style="display:none">
-          <svg viewBox="0 0 127.14 96.36"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>
-        </div>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div class="profile-name" id="acctName">—</div>
-        <div class="profile-meta" id="acctMeta">Amaxyl Account</div>
-      </div>
-      <div class="profile-actions">
-        <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign Out</button>
+        <span class="footer-copy">© Amaxyl 2026 · Not affiliated with Mojang AB.</span>
       </div>
     </div>
-
-    <!-- DISCORD -->
-    <div class="acct-section">
-      <div class="section-label">Discord</div>
-      <div id="discordLinked" style="display:none">
-        <div class="discord-box">
-          <img class="discord-avatar" id="discordAvatar" src="" alt="" />
-          <div class="discord-info">
-            <div class="discord-name" id="discordName"></div>
-            <div class="discord-id" id="discordId"></div>
-          </div>
-          <button class="btn btn-danger btn-sm" onclick="unlinkDiscord()">Unlink</button>
-        </div>
-        <div class="msg" id="discordMsg" style="margin-top:8px;"></div>
-      </div>
-      <div id="discordUnlinked">
-        <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5;">
-          Link your Discord to sync Kirk &amp; Ethane subscriptions and enable downloads.
-        </p>
-        <a class="btn btn-discord" id="linkDiscordBtn" href="#">
-          <svg viewBox="0 0 127.14 96.36" width="15" height="15" fill="currentColor">
-            <path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/>
-          </svg>
-          Link Discord Account
-        </a>
-        <div class="msg" id="discordMsg2" style="margin-top:8px;"></div>
-      </div>
-    </div>
-
-    <!-- SUBSCRIPTIONS -->
-    <div class="acct-section">
-      <div class="section-label">Subscriptions</div>
-      <div class="sub-grid">
-        <div class="sub-row">
-          <div class="sub-icon kirk">⚡</div>
-          <div class="sub-info">
-            <div class="sub-name">Kirk Client</div>
-            <div class="sub-detail" id="kirkDetail">Checking…</div>
-          </div>
-          <span class="sub-badge" id="kirkBadge">—</span>
-        </div>
-        <div class="sub-row">
-          <div class="sub-icon ethane">✦</div>
-          <div class="sub-info">
-            <div class="sub-name">Ethane Client</div>
-            <div class="sub-detail" id="ethaneDetail">Checking…</div>
-          </div>
-          <span class="sub-badge" id="ethaneBadge">—</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- HWID -->
-    <div class="acct-section" id="hwidSection" style="display:none">
-      <div class="section-label">Device Lock (HWID)</div>
-      <div class="hwid-status">
-        <div class="hwid-dot unset" id="hwidDot"></div>
-        <span class="hwid-val" id="hwidVal">No device registered</span>
-      </div>
-      <div class="inline-row">
-        <input type="text" id="hwidInput" placeholder="Paste HWID from game client" spellcheck="false" autocomplete="off" />
-        <button class="btn btn-ghost btn-sm" id="hwidBtn" onclick="setHwid()">Set</button>
-      </div>
-      <div class="help-text" id="hwidMsg"></div>
-    </div>
-
-    <!-- DOWNLOADS -->
-    <div class="acct-section">
-      <div class="section-label">Downloads</div>
-      <div class="dl-grid">
-        <a class="dl-btn disabled" id="dlKirk" href="#" onclick="downloadClient('kirk',event)">
-          <span class="dl-icon">⚡</span>
-          <div class="dl-info">
-            <span class="dl-name">Kirk Client</span>
-            <span class="dl-sub" id="dlKirkSub">Not subscribed</span>
-          </div>
-        </a>
-        <a class="dl-btn disabled" id="dlEthane" href="#" onclick="downloadClient('ethane',event)">
-          <span class="dl-icon">✦</span>
-          <div class="dl-info">
-            <span class="dl-name">Ethane Client</span>
-            <span class="dl-sub" id="dlEthaneSub">Not subscribed</span>
-          </div>
-        </a>
-      </div>
-    </div>
-
-    <!-- REDEEM KEY -->
-    <div class="acct-section">
-      <div class="section-label">Redeem Key</div>
-      <div class="msg" id="redeemMsg"></div>
-      <div class="redeem-row">
-        <input type="text" id="redeemInput" placeholder="KIRK-XXXXX or ETHANE-XXXXX" spellcheck="false" autocomplete="off" />
-        <button class="btn btn-primary btn-sm" onclick="redeemKey()">Redeem</button>
-      </div>
-    </div>
-
-  </div>
-
-</main>
-
-<script>
-// ═══════════════════════════════════════════════════════
-//  CONFIG
-// ═══════════════════════════════════════════════════════
-const API = 'https://amaxylauth.lillykobusiness69.workers.dev';
-
-// ═══════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════
-let _user = null;
-
-// ═══════════════════════════════════════════════════════
-//  HELPERS
-// ═══════════════════════════════════════════════════════
-const $  = id => document.getElementById(id);
-const show = (id, d='block') => { const e = typeof id==='string'?$(id):id; if(e) e.style.display=d; };
-const hide = id => { const e = typeof id==='string'?$(id):id; if(e) e.style.display='none'; };
-
-function showMsg(id, text, type='error') {
-  const el = $(id); if (!el) return;
-  el.className = `msg ${type}`;
-  el.textContent = text;
-}
-function clearMsg(id) {
-  const el = $(id); if (!el) return;
-  el.className = 'msg'; el.textContent = '';
-}
-
-function getToken() {
-  try { return localStorage.getItem('amaxyl_token'); } catch { return null; }
-}
-function setToken(t) {
-  try { localStorage.setItem('amaxyl_token', t); } catch {}
-}
-function clearToken() {
-  try { localStorage.removeItem('amaxyl_token'); } catch {}
-}
-
-async function apiFetch(path, opts = {}) {
-  const token = getToken();
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(`${API}${path}`, { ...opts, headers, credentials: 'include' });
-}
-
-// ═══════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════
-async function init() {
-  const params = new URLSearchParams(location.search);
-
-  // Pick up token from Discord OAuth redirect
-  const oauthToken = params.get('amaxyl_token');
-  if (oauthToken) {
-    setToken(oauthToken);
-    history.replaceState({}, '', location.pathname);
-  }
-
-  const oauthError = params.get('error');
-
-  const token = getToken();
-  if (!token) {
-    showAuth(oauthError);
-    return;
-  }
-
-  try {
-    const res = await apiFetch('/auth/me');
-    if (res.ok) {
-      _user = await res.json();
-      renderAccount();
-    } else {
-      clearToken();
-      showAuth(oauthError);
-    }
-  } catch {
-    showAuth('connection_failed');
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  AUTH PAGE
-// ═══════════════════════════════════════════════════════
-function showAuth(err) {
-  hide('pageLoading');
-  show('pageAuth');
-
-  $('discordLoginBtn').href = `${API}/auth/discord/login`;
-  $('discordRegBtn').href   = `${API}/auth/discord/login`;
-
-  if (err) {
-    const msgs = {
-      no_code:           'Discord login was cancelled.',
-      token_failed:      'Could not verify Discord login. Try again.',
-      user_failed:       'Could not fetch Discord profile.',
-      connection_failed: 'Cannot connect to Amaxyl servers. Check your connection.',
-      username_taken:    'That username is already taken.',
-      email_taken:       'That email is already registered.',
-    };
-    showMsg('authMsg', msgs[err] || 'Something went wrong. Please try again.', 'error');
-  }
-}
-
-function switchTab(tab) {
-  const isLogin = tab === 'login';
-  $('tabLogin').classList.toggle('active', isLogin);
-  $('tabRegister').classList.toggle('active', !isLogin);
-  $('formLogin').classList.toggle('active', isLogin);
-  $('formRegister').classList.toggle('active', !isLogin);
-  clearMsg('authMsg');
-
-  if (isLogin) {
-    $('authTitle').textContent = 'Welcome back';
-    $('authSub').textContent   = 'Sign in to manage your subscriptions.';
-  } else {
-    $('authTitle').textContent = 'Create account';
-    $('authSub').textContent   = 'Join Amaxyl to access Kirk & Ethane.';
-  }
-}
-
-async function doLogin() {
-  clearMsg('authMsg');
-  const username = $('loginUsername').value.trim();
-  const password = $('loginPassword').value;
-  if (!username || !password) { showMsg('authMsg', 'Please fill in all fields.'); return; }
-
-  const btn = $('loginBtn');
-  btn.disabled = true; btn.textContent = 'Signing in…';
-
-  try {
-    const res  = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
-    const data = await res.json();
-    if (!res.ok) { showMsg('authMsg', data.error || 'Login failed.'); return; }
-
-    setToken(data.token);
-    _user = data.user;
-    renderAccount();
-  } catch {
-    showMsg('authMsg', 'Connection error. Try again.');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Sign In';
-  }
-}
-
-async function doRegister() {
-  clearMsg('authMsg');
-  const username = $('regUsername').value.trim();
-  const email    = $('regEmail').value.trim();
-  const password = $('regPassword').value;
-  const confirm  = $('regPasswordConfirm').value;
-
-  if (!username || !email || !password) { showMsg('authMsg', 'Please fill in all fields.'); return; }
-  if (password !== confirm) { showMsg('authMsg', 'Passwords do not match.'); return; }
-  if (password.length < 8) { showMsg('authMsg', 'Password must be at least 8 characters.'); return; }
-
-  const btn = $('registerBtn');
-  btn.disabled = true; btn.textContent = 'Creating account…';
-
-  try {
-    const res  = await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password }) });
-    const data = await res.json();
-    if (!res.ok) { showMsg('authMsg', data.error || 'Registration failed.'); return; }
-
-    setToken(data.token);
-    _user = data.user;
-    renderAccount();
-  } catch {
-    showMsg('authMsg', 'Connection error. Try again.');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Create Account';
-  }
-}
-
-function doLogout() {
-  clearToken();
-  _user = null;
-  hide('pageAccount');
-  hide('pageLoading');
-  show('pageAuth');
-  switchTab('login');
-}
-
-// ═══════════════════════════════════════════════════════
-//  ACCOUNT PAGE
-// ═══════════════════════════════════════════════════════
-function renderAccount() {
-  hide('pageLoading');
-  hide('pageAuth');
-  show('pageAccount');
-
-  const u = _user;
-
-  // Avatar
-  if (u.discord?.avatar) {
-    $('acctAvatar').src = `https://cdn.discordapp.com/avatars/${u.discord.id}/${u.discord.avatar}.png?size=128`;
-  } else {
-    $('acctAvatar').src = `https://cdn.discordapp.com/embed/avatars/${(BigInt(u.id || '0') >> 22n) % 6n || 0}.png`;
-  }
-  $('acctName').textContent = u.username;
-  $('acctMeta').textContent = u.email || 'No email set';
-
-  // Discord
-  if (u.discord) {
-    show('discordLinked'); hide('discordUnlinked'); show('discordBadge');
-    $('discordAvatar').src = u.discord.avatar
-      ? `https://cdn.discordapp.com/avatars/${u.discord.id}/${u.discord.avatar}.png?size=64`
-      : `https://cdn.discordapp.com/embed/avatars/0.png`;
-    $('discordName').textContent = u.discord.username;
-    $('discordId').textContent   = `ID: ${u.discord.id}`;
-  } else {
-    hide('discordLinked'); show('discordUnlinked'); hide('discordBadge');
-    $('linkDiscordBtn').href = `${API}/auth/discord/link?amaxyl_token=${encodeURIComponent(getToken() || '')}`;
-  }
-
-  renderSubs(u);
-
-  if (u.kirk_subscribed || u.ethane_subscribed) {
-    show('hwidSection');
-    if (u.hwid_set) {
-      $('hwidDot').className = 'hwid-dot set';
-      $('hwidVal').textContent = 'Device registered ✓';
-      if (!u.can_reset_hwid) {
-        $('hwidInput').disabled = true;
-        $('hwidBtn').disabled = true;
-        $('hwidMsg').textContent = 'HWID locked for 30 days. Contact support to reset.';
-      }
-    } else {
-      $('hwidDot').className = 'hwid-dot unset';
-      $('hwidVal').textContent = 'No device registered';
-    }
-  } else {
-    hide('hwidSection');
-  }
-}
-
-function renderSubs(u) {
-  if (u.kirk_subscribed) {
-    $('kirkDetail').textContent = u.kirk_tier ? `Tier: ${u.kirk_tier}` : 'Active';
-    $('kirkBadge').className    = `sub-badge ${u.kirk_tier === 'lifetime' ? 'lifetime' : 'active'}`;
-    $('kirkBadge').textContent  = u.kirk_tier || 'Active';
-    $('dlKirk').classList.remove('disabled');
-    $('dlKirkSub').textContent  = u.kirk_tier || 'Active';
-  } else {
-    $('kirkDetail').textContent = 'No subscription';
-    $('kirkBadge').className    = 'sub-badge inactive';
-    $('kirkBadge').textContent  = 'Inactive';
-    $('dlKirk').classList.add('disabled');
-    $('dlKirkSub').textContent  = 'Not subscribed';
-  }
-  if (u.ethane_subscribed) {
-    $('ethaneDetail').textContent = u.ethane_tier ? `Tier: ${u.ethane_tier}` : 'Active';
-    $('ethaneBadge').className    = `sub-badge ${u.ethane_tier === 'lifetime' ? 'lifetime' : 'active'}`;
-    $('ethaneBadge').textContent  = u.ethane_tier || 'Active';
-    $('dlEthane').classList.remove('disabled');
-    $('dlEthaneSub').textContent  = u.ethane_tier || 'Active';
-  } else {
-    $('ethaneDetail').textContent = 'No subscription';
-    $('ethaneBadge').className    = 'sub-badge inactive';
-    $('ethaneBadge').textContent  = 'Inactive';
-    $('dlEthane').classList.add('disabled');
-    $('dlEthaneSub').textContent  = 'Not subscribed';
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  HWID
-// ═══════════════════════════════════════════════════════
-async function setHwid() {
-  const hwid = $('hwidInput').value.trim();
-  if (!hwid) { $('hwidMsg').textContent = 'Paste your HWID first.'; return; }
-
-  $('hwidBtn').disabled = true; $('hwidBtn').textContent = '…';
-  $('hwidMsg').textContent = '';
-
-  try {
-    const res  = await apiFetch('/auth/hwid', { method: 'POST', body: JSON.stringify({ hwid }) });
-    const data = await res.json();
-    if (!res.ok) {
-      $('hwidMsg').textContent = data.error || 'Failed to set HWID.';
-    } else {
-      $('hwidDot').className = 'hwid-dot set';
-      $('hwidVal').textContent = 'Device registered ✓';
-      $('hwidInput').value = '';
-      $('hwidMsg').textContent = 'HWID registered successfully.';
-      _user.hwid_set = true;
-    }
-  } catch {
-    $('hwidMsg').textContent = 'Connection error.';
-  } finally {
-    $('hwidBtn').disabled = false; $('hwidBtn').textContent = 'Set';
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  REDEEM KEY
-// ═══════════════════════════════════════════════════════
-async function redeemKey() {
-  clearMsg('redeemMsg');
-  const key = $('redeemInput').value.trim().toUpperCase();
-  if (!key) { showMsg('redeemMsg', 'Please enter a key.'); return; }
-
-  try {
-    const res  = await apiFetch('/auth/redeem', { method: 'POST', body: JSON.stringify({ key }) });
-    const data = await res.json();
-    if (!res.ok) {
-      const msgs = {
-        invalid_key:       'Invalid or unrecognized key.',
-        key_already_used:  'This key has already been redeemed.',
-        key_expired:       'This key has expired.',
-        already_subscribed:'You already have an active subscription for this product.',
-      };
-      showMsg('redeemMsg', msgs[data.error] || data.error || 'Failed to redeem.', 'error');
-    } else {
-      showMsg('redeemMsg', `✓ ${data.product === 'ethane' ? 'Ethane' : 'Kirk'} ${data.tier} activated!`, 'success');
-      $('redeemInput').value = '';
-      const meRes = await apiFetch('/auth/me');
-      if (meRes.ok) { _user = await meRes.json(); renderSubs(_user); }
-    }
-  } catch {
-    showMsg('redeemMsg', 'Connection error.', 'error');
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  DISCORD UNLINK
-// ═══════════════════════════════════════════════════════
-async function unlinkDiscord() {
-  try {
-    const res = await apiFetch('/auth/discord/unlink', { method: 'POST' });
-    if (res.ok) {
-      _user.discord = null;
-      hide('discordLinked'); show('discordUnlinked'); hide('discordBadge');
-      $('linkDiscordBtn').href = `${API}/auth/discord/link?amaxyl_token=${encodeURIComponent(getToken() || '')}`;
-      $('acctAvatar').src = `https://cdn.discordapp.com/embed/avatars/0.png`;
-      showMsg('discordMsg2', 'Discord unlinked.', 'warn');
-    }
-  } catch {}
-}
-
-// ═══════════════════════════════════════════════════════
-//  DOWNLOADS
-// ═══════════════════════════════════════════════════════
-async function downloadClient(product, e) {
-  e.preventDefault();
-  const btn = product === 'kirk' ? $('dlKirk') : $('dlEthane');
-  if (btn.classList.contains('disabled')) return;
-  const token = getToken();
-  if (!token) return;
-  window.location.href = `${API}/auth/download?product=${product}&token=${encodeURIComponent(token)}`;
-}
-
-// ═══════════════════════════════════════════════════════
-//  BOOT
-// ═══════════════════════════════════════════════════════
-init();
-</script>
+  </footer>
 
 </body>
 </html>

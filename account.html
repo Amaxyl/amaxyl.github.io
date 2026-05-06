@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amaxyl — Account</title>
+  <link rel="icon" type="image/png" href="https://iili.io/BZn9p0Q.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- QR code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- TOTP secret generation (uses otpauth style TOTP) -->
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:        #080a0f;
+      --surface:   rgba(255,255,255,0.03);
+      --surface2:  rgba(255,255,255,0.055);
+      --border:    rgba(255,255,255,0.08);
+      --border2:   rgba(255,255,255,0.13);
+      --text:      rgba(255,255,255,0.92);
+      --muted:     rgba(255,255,255,0.48);
+      --faint:     rgba(255,255,255,0.20);
+      --accent:    #7c6aff;
+      --accent2:   #a78bfa;
+      --ok:        #22c55e;
+      --err:       #ef4444;
+      --warn:      #f59e0b;
+      --radius:    14px;
+      --radius-lg: 22px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; overflow-x: hidden;
+    }
+
+    /* BACKDROP */
+    .backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .bd-wash {
+      position: absolute; width: 200%; height: 200%; left: -50%; top: -50%;
+      background:
+        radial-gradient(circle at 25% 25%, rgba(124,106,255,0.09) 0%, transparent 45%),
+        radial-gradient(circle at 80% 70%, rgba(100,80,255,0.06) 0%, transparent 45%);
+      animation: bdFloat 28s ease-in-out infinite;
+    }
+    @keyframes bdFloat { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-2%,3%)} }
+    .bd-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(circle at 50% 30%, rgba(0,0,0,0.7), transparent 65%);
+    }
+    .bd-grain {
+      position: absolute; inset: 0; opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 1rem; left: 0; right: 0; z-index: 200;
+      display: flex; justify-content: center; padding: 0 1.5rem; pointer-events: none;
+    }
+    .nav-inner {
+      pointer-events: auto;
+      display: flex; align-items: center; justify-content: space-between;
+      width: min(1100px, 100%);
+      background: rgba(8,10,15,0.8); border: 1px solid var(--border2);
+      border-radius: 999px; padding: 0.55rem 0.7rem 0.55rem 1.25rem;
+      backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+      box-shadow: 0 4px 40px rgba(0,0,0,0.5);
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 0.6rem;
+      text-decoration: none; color: inherit;
+    }
+    .nav-brand img { width: 30px; height: 30px; border-radius: 8px; }
+    .nav-brand strong {
+      font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;
+      background: linear-gradient(135deg, #fff 50%, var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .btn-nav {
+      font-size: 0.85rem; font-weight: 500; padding: 0.5rem 1.1rem; border-radius: 999px;
+      text-decoration: none; border: 1px solid var(--border2); color: var(--muted);
+      background: transparent; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif;
+    }
+    .btn-nav:hover { color: var(--text); background: var(--surface2); }
+
+    /* LAYOUT */
+    .page { display: flex; min-height: 100vh; position: relative; z-index: 10; padding-top: 5rem; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 260px; flex-shrink: 0; padding: 2rem 1.25rem;
+      border-right: 1px solid var(--border);
+      position: sticky; top: 5rem; height: calc(100vh - 5rem); overflow-y: auto;
+    }
+    .sidebar-section { margin-bottom: 0.25rem; }
+    .sidebar-label {
+      font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--faint); padding: 0 0.75rem;
+      margin-bottom: 0.4rem; display: block;
+    }
+    .sidebar-btn {
+      display: flex; align-items: center; gap: 0.6rem;
+      width: 100%; padding: 0.6rem 0.75rem; border-radius: 10px;
+      border: none; background: transparent; color: var(--muted);
+      font-family: 'DM Sans', sans-serif; font-size: 0.88rem;
+      cursor: pointer; text-align: left; transition: all 0.15s;
+    }
+    .sidebar-btn:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-btn.active { background: rgba(124,106,255,0.12); color: #c4b5fd; }
+    .sidebar-btn .icon { font-size: 1rem; opacity: 0.8; }
+    .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 0.75rem 0.75rem; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem; max-width: 860px; }
+    .main-header { margin-bottom: 2rem; }
+    .main-header h1 {
+      font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800;
+      letter-spacing: -0.02em; margin-bottom: 0.3rem;
+    }
+    .main-header p { font-size: 0.9rem; color: var(--muted); }
+
+    /* PANELS */
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem; padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-head h2 {
+      font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 700;
+    }
+    .panel-head p { font-size: 0.83rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* STATUS BADGES */
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 0.3rem 0.75rem; border-radius: 999px;
+    }
+    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+    .badge-ok { background: rgba(34,197,94,0.1); color: var(--ok); border: 1px solid rgba(34,197,94,0.2); }
+    .badge-ok::before { background: var(--ok); }
+    .badge-warn { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+    .badge-warn::before { background: var(--warn); }
+    .badge-off { background: rgba(255,255,255,0.04); color: var(--faint); border: 1px solid var(--border); }
+    .badge-off::before { background: var(--faint); }
+
+    /* FORM ELEMENTS */
+    .field { margin-bottom: 1rem; }
+    .field label {
+      display: block; font-size: 0.82rem; color: var(--muted);
+      margin-bottom: 0.4rem; font-weight: 500;
+    }
+    .field input {
+      width: 100%; padding: 0.7rem 1rem; border-radius: 10px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input:focus { border-color: rgba(124,106,255,0.4); box-shadow: 0 0 0 3px rgba(124,106,255,0.08); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    /* BUTTONS */
+    .btn {
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.88rem;
+      padding: 0.65rem 1.4rem; border-radius: 10px; cursor: pointer;
+      border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff;
+      box-shadow: 0 0 20px rgba(124,106,255,0.25);
+    }
+    .btn-accent:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(124,106,255,0.4); }
+    .btn-outline {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border2);
+    }
+    .btn-outline:hover { color: var(--text); background: var(--surface2); }
+    .btn-danger {
+      background: rgba(239,68,68,0.1); color: #f87171;
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+    .btn-danger:hover { background: rgba(239,68,68,0.18); }
+    .btn-sm { font-size: 0.8rem; padding: 0.45rem 1rem; border-radius: 8px; }
+    .btn-block { width: 100%; justify-content: center; }
+
+    /* INFO ROWS */
+    .info-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .info-row:first-child { padding-top: 0; }
+    .info-key { font-size: 0.85rem; color: var(--muted); }
+    .info-val { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--text); }
+
+    /* CLIENT ACCESS CARDS */
+    .access-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .access-card {
+      border-radius: var(--radius); padding: 1.25rem;
+      border: 1px solid var(--border); background: var(--surface); position: relative;
+      overflow: hidden;
+    }
+    .access-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .access-card.kirk { border-color: rgba(245,158,11,0.18); }
+    .access-card.kirk::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .access-card.ethane { border-color: rgba(0,170,255,0.18); }
+    .access-card.ethane::before { background: linear-gradient(90deg, #00aaff, #4dcfff); }
+    .access-card-logo {
+      width: 44px; height: 44px; border-radius: 12px; overflow: hidden;
+      margin-bottom: 0.75rem;
+    }
+    .access-card-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .access-card.ethane .access-card-logo {
+      background: #03060f; display: flex; align-items: center; justify-content: center;
+    }
+    .access-card.ethane .access-card-logo img { width: 80%; height: 80%; object-fit: contain; }
+    .access-card h3 {
+      font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.3rem;
+    }
+    .access-actions { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+    /* 2FA MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem; opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .modal {
+      background: #0e1018; border: 1px solid var(--border2); border-radius: var(--radius-lg);
+      padding: 2rem; width: 100%; max-width: 480px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,106,255,0.08) inset;
+      transform: translateY(12px); transition: transform 0.25s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; }
+    .modal-header h2 { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; }
+    .modal-header p { font-size: 0.83rem; color: var(--muted); margin-top: 0.25rem; }
+    .modal-close {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+      width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0; transition: all 0.15s;
+    }
+    .modal-close:hover { color: var(--text); background: var(--surface); }
+
+    /* 2FA STEPS */
+    .twofa-steps { display: flex; gap: 0; margin-bottom: 1.75rem; }
+    .twofa-step {
+      flex: 1; text-align: center; position: relative;
+    }
+    .twofa-step::after {
+      content: ''; position: absolute; top: 14px; right: -50%;
+      width: 100%; height: 1px; background: var(--border);
+      z-index: 0;
+    }
+    .twofa-step:last-child::after { display: none; }
+    .step-dot {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1.5px solid var(--border); background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Mono', monospace; font-size: 0.7rem;
+      color: var(--faint); margin: 0 auto 0.4rem; position: relative; z-index: 1;
+      transition: all 0.2s;
+    }
+    .twofa-step.active .step-dot { border-color: var(--accent); color: var(--accent2); background: rgba(124,106,255,0.12); }
+    .twofa-step.done .step-dot { border-color: var(--ok); background: rgba(34,197,94,0.12); color: var(--ok); }
+    .step-label { font-size: 0.7rem; color: var(--faint); }
+    .twofa-step.active .step-label { color: var(--muted); }
+    .twofa-step.done .step-label { color: var(--ok); }
+
+    /* QR DISPLAY */
+    .qr-wrap {
+      display: flex; flex-direction: column; align-items: center; margin: 1.5rem 0;
+    }
+    .qr-box {
+      background: #fff; border-radius: 12px; padding: 14px;
+      width: 180px; height: 180px; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 40px rgba(124,106,255,0.2), 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    .qr-box canvas, .qr-box img { width: 152px !important; height: 152px !important; }
+    .qr-secret-label { font-size: 0.78rem; color: var(--muted); margin-top: 1rem; text-align: center; }
+    .qr-secret {
+      font-family: 'DM Mono', monospace; font-size: 0.8rem; color: var(--text);
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 0.5rem 1rem; border-radius: 8px; margin-top: 0.4rem;
+      letter-spacing: 0.05em; word-break: break-all; text-align: center;
+      cursor: pointer; transition: border-color 0.2s;
+    }
+    .qr-secret:hover { border-color: var(--border2); }
+    .qr-hint { font-size: 0.78rem; color: var(--faint); text-align: center; margin-top: 0.75rem; }
+
+    /* OTP INPUT */
+    .otp-wrap { display: flex; gap: 0.5rem; justify-content: center; margin: 1.25rem 0; }
+    .otp-input {
+      width: 48px; height: 54px; border-radius: 10px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      color: var(--text); font-family: 'DM Mono', monospace; font-size: 1.3rem;
+      text-align: center; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .otp-input:focus { border-color: rgba(124,106,255,0.5); box-shadow: 0 0 0 3px rgba(124,106,255,0.1); }
+
+    /* ALERT */
+    .alert {
+      padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.83rem;
+      margin-bottom: 1rem; display: none;
+    }
+    .alert.show { display: block; }
+    .alert-err { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5; }
+    .alert-ok { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); color: #86efac; }
+
+    /* REDEEM */
+    .redeem-wrap { display: flex; gap: 0.75rem; }
+    .redeem-wrap input { flex: 1; }
+
+    /* TOAST */
+    .toast-wrap {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999;
+      display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+    }
+    .toast {
+      background: #1a1d26; border: 1px solid var(--border2);
+      border-radius: 12px; padding: 0.75rem 1.25rem;
+      font-size: 0.85rem; color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      animation: toastIn 0.3s ease;
+      pointer-events: auto;
+    }
+    @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    /* AUTH PAGES */
+    .auth-center {
+      display: flex; align-items: center; justify-content: center;
+      min-height: calc(100vh - 5rem); padding: 2rem;
+    }
+    .auth-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius-lg); padding: 2.25rem; width: 100%; max-width: 420px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(124,106,255,0.06) inset;
+    }
+    .auth-logo {
+      display: flex; align-items: center; gap: 0.6rem;
+      margin-bottom: 1.75rem; text-decoration: none; color: inherit;
+    }
+    .auth-logo img { width: 36px; height: 36px; border-radius: 10px; }
+    .auth-logo strong {
+      font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800;
+      background: linear-gradient(135deg, #fff 50%, var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .auth-card h1 { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.3rem; }
+    .auth-card > p { font-size: 0.88rem; color: var(--muted); margin-bottom: 1.75rem; }
+    .auth-divider {
+      display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0;
+      font-size: 0.78rem; color: var(--faint);
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .auth-switch { text-align: center; font-size: 0.83rem; color: var(--muted); margin-top: 1.25rem; }
+    .auth-switch a { color: var(--accent2); text-decoration: none; }
+    .auth-switch a:hover { text-decoration: underline; }
+    .btn-discord {
+      width: 100%; padding: 0.75rem; border-radius: 10px; border: none; cursor: pointer;
+      background: #5865F2; color: #fff;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+      transition: all 0.2s;
+    }
+    .btn-discord:hover { background: #4752c4; }
+    .btn-discord svg { width: 20px; height: 20px; }
+
+    /* HIDDEN / VISIBLE */
+    .hidden { display: none !important; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { padding: 1.5rem 1.25rem; }
+      .access-grid { grid-template-columns: 1fr; }
+      .field-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="backdrop" aria-hidden="true">
+    <div class="bd-wash"></div>
+    <div class="bd-grid"></div>
+    <div class="bd-grain"></div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand">
+        <img src="https://iili.io/BZn9p0Q.png" alt="Amaxyl">
+        <strong>Amaxyl</strong>
+      </a>
+      <a href="index.html" class="btn-nav">← Back to home</a>
+    </div>
+  </nav>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <!-- 2FA MODAL -->
+  <div class="modal-overlay" id="tfaModal" role="dialog" aria-modal="true" aria-labelledby="tfaTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="tfaTitle">Link Authenticator App</h2>
+          <p>Secure your account with two-factor authentication</p>
+        </div>
+        <button class="modal-close" onclick="closeTfaModal()" aria-label="Close">✕</button>
+      </div>
+
+      <!-- Steps indicator -->
+      <div class="twofa-steps" id="tfaSteps">
+        <div class="twofa-step active" id="stepEl1">
+          <div class="step-dot">1</div>
+          <div class="step-label">Scan QR</div>
+        </div>
+        <div class="twofa-step" id="stepEl2">
+          <div class="step-dot">2</div>
+          <div class="step-label">Verify</div>
+        </div>
+        <div class="twofa-step" id="stepEl3">
+          <div class="step-dot">3</div>
+          <div class="step-label">Done</div>
+        </div>
+      </div>
+
+      <!-- Step 1: QR Code -->
+      <div id="tfaStep1">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.25rem;">
+          1. Open your authenticator app (Google Authenticator, Authy, or any TOTP app).
+        </p>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">
+          2. Tap <strong style="color:var(--text)">Add account</strong> → <strong style="color:var(--text)">Scan QR code</strong>.
+        </p>
+
+        <div class="qr-wrap">
+          <div class="qr-box" id="qrContainer"></div>
+          <div class="qr-secret-label">Or enter manually:</div>
+          <div class="qr-secret" id="secretDisplay" onclick="copySecret()" title="Click to copy"></div>
+          <div class="qr-hint">Tap the secret key to copy it to clipboard</div>
+        </div>
+
+        <button class="btn btn-accent btn-block" onclick="goToStep2()">I've scanned the code →</button>
+      </div>
+
+      <!-- Step 2: Verify OTP -->
+      <div id="tfaStep2" class="hidden">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.25rem;text-align:center;">
+          Enter the 6-digit code shown in your authenticator app to confirm linking.
+        </p>
+        <div class="otp-wrap" id="otpWrap">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        </div>
+        <div class="alert alert-err" id="tfaErr"></div>
+        <div style="display:flex;gap:0.75rem;">
+          <button class="btn btn-outline" onclick="goToStep1()">← Back</button>
+          <button class="btn btn-accent" style="flex:1;justify-content:center;" onclick="verifyOtp()">Verify & Enable</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Success -->
+      <div id="tfaStep3" class="hidden" style="text-align:center;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🎉</div>
+        <h3 style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:0.5rem;">2FA Enabled!</h3>
+        <p style="font-size:0.88rem;color:var(--muted);margin-bottom:1.75rem;">
+          Your account is now protected with two-factor authentication. You'll need your app to sign in.
+        </p>
+        <button class="btn btn-accent btn-block" onclick="closeTfaModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH STATE: LOGIN/REGISTER or DASHBOARD -->
+  <div id="authView" style="position:relative;z-index:10;">
+
+    <!-- LOGIN FORM -->
+    <div class="auth-center" id="loginView">
+      <div class="auth-card">
+        <a href="index.html" class="auth-logo">
+          <img src="https://iili.io/BZn9p0Q.png" alt="Amaxyl">
+          <strong>Amaxyl</strong>
+        </a>
+        <h1>Welcome back</h1>
+        <p>Sign in to manage your client access.</p>
+
+        <a id="discordLoginBtn" href="#" class="btn-discord" onclick="discordLogin(event)">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+          Continue with Discord
+        </a>
+
+        <div class="auth-divider">or sign in with password</div>
+
+        <div class="alert alert-err" id="loginErr"></div>
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="loginUser" placeholder="your_username" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn btn-accent btn-block" style="margin-top:0.25rem;" onclick="doLogin()">Sign in →</button>
+        <div class="auth-switch">
+          No account? <a href="#" onclick="showRegister(event)">Create one</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div class="auth-center hidden" id="registerView">
+      <div class="auth-card">
+        <a href="index.html" class="auth-logo">
+          <img src="https://iili.io/BZn9p0Q.png" alt="Amaxyl">
+          <strong>Amaxyl</strong>
+        </a>
+        <h1>Create account</h1>
+        <p>Join Amaxyl and manage all your client licenses in one place.</p>
+
+        <a href="#" class="btn-discord" onclick="discordLogin(event)">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+          Sign up with Discord
+        </a>
+
+        <div class="auth-divider">or create with email</div>
+
+        <div class="alert alert-err" id="regErr"></div>
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="regUser" placeholder="cool_username" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="regPass" placeholder="at least 8 characters" autocomplete="new-password">
+        </div>
+        <button class="btn btn-accent btn-block" style="margin-top:0.25rem;" onclick="doRegister()">Create account →</button>
+        <div class="auth-switch">
+          Already have one? <a href="#" onclick="showLogin(event)">Sign in</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page hidden" id="dashView">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <span class="sidebar-label">Dashboard</span>
+          <button class="sidebar-btn active" onclick="switchTab('overview', this)">
+            <span class="icon">🏠</span> Overview
+          </button>
+          <button class="sidebar-btn" onclick="switchTab('clients', this)">
+            <span class="icon">🎮</span> My Clients
+          </button>
+          <button class="sidebar-btn" onclick="switchTab('redeem', this)">
+            <span class="icon">🔑</span> Redeem Key
+          </button>
+        </div>
+        <hr class="sidebar-divider">
+        <div class="sidebar-section">
+          <span class="sidebar-label">Account</span>
+          <button class="sidebar-btn" onclick="switchTab('security', this)">
+            <span class="icon">🔒</span> Security & 2FA
+          </button>
+          <button class="sidebar-btn" onclick="switchTab('discord', this)">
+            <span class="icon">💬</span> Discord Link
+          </button>
+        </div>
+        <hr class="sidebar-divider">
+        <button class="sidebar-btn" onclick="doLogout()" style="color:var(--err);">
+          <span class="icon">↩</span> Sign out
+        </button>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="main">
+
+        <!-- TAB: OVERVIEW -->
+        <div id="tab-overview">
+          <div class="main-header">
+            <h1>Good to see you, <span id="greetName" style="color:var(--accent2)">—</span></h1>
+            <p>Here's your Amaxyl account at a glance.</p>
+          </div>
+
+          <div class="access-grid" style="margin-bottom:1.25rem;">
+            <!-- Kirk card -->
+            <div class="access-card kirk">
+              <div class="access-card-logo"><img src="https://iili.io/fkPS4Yg.png" alt="Kirk"></div>
+              <h3>Kirk Client</h3>
+              <span id="kirkBadge" class="badge badge-off">Not active</span>
+              <div class="access-actions">
+                <a href="https://kirk-client.sellhub.cx/product/KIRKCLIENT" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Buy $9.99</a>
+                <button class="btn btn-outline btn-sm" id="kirkDlBtn" onclick="downloadClient('kirk')" disabled>Download</button>
+              </div>
+            </div>
+            <!-- Ethane card -->
+            <div class="access-card ethane">
+              <div class="access-card-logo"><img src="https://iili.io/BZn9p0Q.png" alt="Ethane"></div>
+              <h3>Ethane Client</h3>
+              <span class="badge badge-warn">Coming Soon</span>
+              <div class="access-actions">
+                <span class="badge badge-warn" style="font-size:0.7rem;">Notify on launch</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Account Details</h2>
+                <p>Your Amaxyl profile info</p>
+              </div>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Username</span>
+              <span class="info-val" id="infoUsername">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Email</span>
+              <span class="info-val" id="infoEmail">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Discord</span>
+              <span class="info-val" id="infoDiscord">Not linked</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">2FA</span>
+              <span id="info2fa" class="badge badge-off">Disabled</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Member since</span>
+              <span class="info-val" id="infoJoined">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: CLIENTS -->
+        <div id="tab-clients" class="hidden">
+          <div class="main-header">
+            <h1>My Clients</h1>
+            <p>Manage your client access and downloads.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div><h2>Kirk Client</h2><p>Utility client · Minecraft Java</p></div>
+              <span id="kirkBadge2" class="badge badge-off">Not active</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Status</span>
+              <span class="info-val" id="kirkStatus">No license found</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Tier</span>
+              <span class="info-val" id="kirkTier">—</span>
+            </div>
+            <div style="margin-top:1.25rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+              <a href="https://kirk-client.sellhub.cx/product/KIRKCLIENT" target="_blank" rel="noopener" class="btn btn-outline">Buy on Sellhub →</a>
+              <button class="btn btn-accent" id="kirkDlBtn2" onclick="downloadClient('kirk')" disabled>Download Kirk</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div><h2>Ethane Client</h2><p>Next-gen client · Coming soon</p></div>
+              <span class="badge badge-warn">Coming Soon</span>
+            </div>
+            <p style="font-size:0.88rem;color:var(--muted);">Ethane is in active development. Access will be managed through your Amaxyl account when it launches.</p>
+            <div style="margin-top:1rem;">
+              <a href="https://discord.gg/yttpE8z636" target="_blank" rel="noopener" class="btn btn-outline">Join Discord for updates</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: REDEEM -->
+        <div id="tab-redeem" class="hidden">
+          <div class="main-header">
+            <h1>Redeem Key</h1>
+            <p>Enter your license key to activate a client on your account.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div><h2>Activate License</h2><p>Keys start with KIRK- or ETHANE-</p></div>
+            </div>
+            <div class="alert alert-err" id="redeemErr"></div>
+            <div class="alert alert-ok" id="redeemOk"></div>
+            <div class="field">
+              <label>License Key</label>
+              <div class="redeem-wrap">
+                <input type="text" id="redeemKey" placeholder="KIRK-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false">
+                <button class="btn btn-accent" onclick="doRedeem()">Redeem</button>
+              </div>
+            </div>
+            <p style="font-size:0.8rem;color:var(--faint);margin-top:0.5rem;">
+              Purchase a key at <a href="https://kirk-client.sellhub.cx/product/KIRKCLIENT" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none;">Sellhub</a>. Discord must be linked before redeeming.
+            </p>
+          </div>
+        </div>
+
+        <!-- TAB: SECURITY -->
+        <div id="tab-security" class="hidden">
+          <div class="main-header">
+            <h1>Security & 2FA</h1>
+            <p>Protect your account with an extra layer of security.</p>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Two-Factor Authentication</h2>
+                <p>Authenticator app (TOTP) — works with Google Authenticator, Authy, and more</p>
+              </div>
+              <span id="tfaBadge" class="badge badge-off">Disabled</span>
+            </div>
+            <p style="font-size:0.87rem;color:var(--muted);margin-bottom:1.25rem;">
+              When enabled, you'll be asked for a 6-digit code from your authenticator app each time you sign in. Takes about 30 seconds to set up.
+            </p>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+              <button class="btn btn-accent" id="enable2faBtn" onclick="openTfaModal()">Link Authenticator App</button>
+              <button class="btn btn-danger hidden" id="disable2faBtn" onclick="disable2fa()">Remove 2FA</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div><h2>Change Password</h2><p>Update your account password</p></div>
+            </div>
+            <div class="alert alert-err" id="pwErr"></div>
+            <div class="alert alert-ok" id="pwOk"></div>
+            <div class="field-row">
+              <div class="field">
+                <label>New Password</label>
+                <input type="password" id="newPw" placeholder="at least 8 characters" autocomplete="new-password">
+              </div>
+              <div class="field">
+                <label>Confirm Password</label>
+                <input type="password" id="confPw" placeholder="same again" autocomplete="new-password">
+              </div>
+            </div>
+            <button class="btn btn-accent" onclick="changePassword()">Update Password</button>
+          </div>
+        </div>
+
+        <!-- TAB: DISCORD -->
+        <div id="tab-discord" class="hidden">
+          <div class="main-header">
+            <h1>Discord Link</h1>
+            <p>Connect your Discord account for role sync and support access.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div><h2>Discord Account</h2><p>Required to download clients and redeem keys</p></div>
+              <span id="discordBadge" class="badge badge-off">Not linked</span>
+            </div>
+            <div id="discordLinked" class="hidden">
+              <div class="info-row">
+                <span class="info-key">Discord username</span>
+                <span class="info-val" id="discordUser">—</span>
+              </div>
+              <div class="info-row">
+                <span class="info-key">Discord ID</span>
+                <span class="info-val" id="discordId">—</span>
+              </div>
+              <div style="margin-top:1.25rem;display:flex;gap:0.75rem;">
+                <button class="btn btn-danger" onclick="unlinkDiscord()">Unlink Discord</button>
+              </div>
+            </div>
+            <div id="discordUnlinked">
+              <p style="font-size:0.87rem;color:var(--muted);margin-bottom:1.25rem;">
+                Linking your Discord enables role assignment, support channel access, and is required to download client files.
+              </p>
+              <button class="btn-discord" style="display:inline-flex;width:auto;padding:0.65rem 1.25rem;" onclick="linkDiscord()">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                Link Discord Account
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+<script>
+  // ── CONFIG ──────────────────────────────────────────────────────
+  const API = 'https://amaxyl-auth.lillykobusiness69.workers.dev';
+  const SITE = window.location.origin + window.location.pathname.replace('account.html','');
+
+  // ── STATE ──────────────────────────────────────────────────────
+  let token = localStorage.getItem('amaxyl_token');
+  let user  = null;
+  let tfaSecret = null;
+  let tfa2FAEnabled = false;
+  let currentStep = 1;
+
+  // ── INIT ───────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', async () => {
+    // Handle OAuth callback token
+    const params = new URLSearchParams(window.location.search);
+    const cbToken = params.get('amaxyl_token');
+    const cbErr   = params.get('error');
+    if (cbToken) {
+      localStorage.setItem('amaxyl_token', cbToken);
+      token = cbToken;
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (cbErr) {
+      showToast('Discord login failed: ' + cbErr, true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    if (token) {
+      await loadDashboard();
+    } else {
+      show('loginView');
+    }
+    setupOtpInputs();
+  });
+
+  // ── API HELPERS ────────────────────────────────────────────────
+  async function api(path, opts = {}) {
+    const res = await fetch(`${API}${path}`, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers||{}) },
+      body: opts.body ? (typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body)) : undefined
+    });
+    return { ok: res.ok, status: res.status, data: await res.json().catch(()=>({})) };
+  }
+
+  // ── NAVIGATION ─────────────────────────────────────────────────
+  function show(id) {
+    ['loginView','registerView','dashView'].forEach(v => {
+      const el = document.getElementById(v);
+      el.classList.toggle('hidden', v !== id);
+    });
+  }
+  function showRegister(e) { e?.preventDefault(); clearAlerts(); show('registerView'); }
+  function showLogin(e)    { e?.preventDefault(); clearAlerts(); show('loginView'); }
+  function clearAlerts() {
+    document.querySelectorAll('.alert').forEach(a => { a.classList.remove('show'); a.textContent = ''; });
+  }
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+    document.getElementById('tab-'+name).classList.remove('hidden');
+    document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // ── AUTH ───────────────────────────────────────────────────────
+  async function doLogin() {
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    if (!username || !password) return showErr('loginErr', 'Please fill in all fields.');
+    const r = await api('/auth/login', { method:'POST', body: {username, password} });
+    if (!r.ok) return showErr('loginErr', r.data.error || 'Login failed.');
+    localStorage.setItem('amaxyl_token', r.data.token);
+    token = r.data.token;
+    await loadDashboard();
+  }
+
+  async function doRegister() {
+    const username = document.getElementById('regUser').value.trim();
+    const email    = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPass').value;
+    if (!username || !email || !password) return showErr('regErr', 'Please fill in all fields.');
+    const r = await api('/auth/register', { method:'POST', body: {username, email, password} });
+    if (!r.ok) return showErr('regErr', r.data.error || 'Registration failed.');
+    localStorage.setItem('amaxyl_token', r.data.token);
+    token = r.data.token;
+    await loadDashboard();
+  }
+
+  function discordLogin(e) {
+    e?.preventDefault();
+    window.location.href = `${API}/auth/discord/login`;
+  }
+
+  function linkDiscord() {
+    window.location.href = `${API}/auth/discord/link?amaxyl_token=${encodeURIComponent(token)}`;
+  }
+
+  async function unlinkDiscord() {
+    const r = await api('/auth/discord/unlink', { method:'POST' });
+    if (!r.ok) return showToast(r.data.error || 'Failed to unlink.', true);
+    showToast('Discord unlinked.');
+    await loadDashboard();
+  }
+
+  function doLogout() {
+    localStorage.removeItem('amaxyl_token');
+    localStorage.removeItem('amaxyl_2fa');
+    token = null; user = null;
+    show('loginView');
+  }
+
+  // ── DASHBOARD ──────────────────────────────────────────────────
+  async function loadDashboard() {
+    const r = await api('/auth/me');
+    if (!r.ok) { doLogout(); return; }
+    user = r.data;
+    tfa2FAEnabled = !!localStorage.getItem('amaxyl_2fa_' + user.id);
+
+    // populate UI
+    document.getElementById('greetName').textContent = user.username;
+    document.getElementById('infoUsername').textContent = user.username;
+    document.getElementById('infoEmail').textContent = user.email || '—';
+    document.getElementById('infoJoined').textContent = new Date(user.createdAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+
+    const discordStr = user.discord ? `${user.discord.username}` : 'Not linked';
+    document.getElementById('infoDiscord').textContent = discordStr;
+
+    // Kirk
+    const kirkActive = user.kirk_subscribed;
+    setBadge('kirkBadge', kirkActive ? 'Active' : 'Not active', kirkActive ? 'ok' : 'off');
+    setBadge('kirkBadge2', kirkActive ? 'Active' : 'Not active', kirkActive ? 'ok' : 'off');
+    document.getElementById('kirkStatus').textContent = kirkActive ? 'Active' : 'No license found';
+    document.getElementById('kirkTier').textContent = user.kirk_tier || '—';
+    ['kirkDlBtn','kirkDlBtn2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = !kirkActive;
+    });
+
+    // Discord tab
+    if (user.discord) {
+      document.getElementById('discordBadge').className = 'badge badge-ok';
+      document.getElementById('discordBadge').textContent = 'Linked';
+      document.getElementById('discordLinked').classList.remove('hidden');
+      document.getElementById('discordUnlinked').classList.add('hidden');
+      document.getElementById('discordUser').textContent = user.discord.username;
+      document.getElementById('discordId').textContent = user.discord.id;
+    } else {
+      document.getElementById('discordBadge').className = 'badge badge-off';
+      document.getElementById('discordBadge').textContent = 'Not linked';
+      document.getElementById('discordLinked').classList.add('hidden');
+      document.getElementById('discordUnlinked').classList.remove('hidden');
+    }
+
+    // 2FA
+    update2FAui();
+
+    show('dashView');
+  }
+
+  function setBadge(id, text, type) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'badge badge-' + type;
+  }
+
+  // ── REDEEM ─────────────────────────────────────────────────────
+  async function doRedeem() {
+    const key = document.getElementById('redeemKey').value.trim();
+    if (!key) return showErr('redeemErr', 'Please enter a license key.');
+    clearEl('redeemErr'); clearEl('redeemOk');
+    const r = await api('/auth/redeem', { method:'POST', body: {key} });
+    if (!r.ok) return showErr('redeemErr', r.data.error || 'Redemption failed.');
+    showOk('redeemOk', `✓ ${r.data.product === 'ethane' ? 'Ethane' : 'Kirk'} access activated! (${r.data.tier || 'Lifetime'})`);
+    document.getElementById('redeemKey').value = '';
+    await loadDashboard();
+  }
+
+  // ── DOWNLOAD ────────────────────────────────────────────────────
+  async function downloadClient(product) {
+    showToast('Generating download link…');
+    const r = await fetch(`${API}/auth/download?product=${product}&token=${encodeURIComponent(token)}`);
+    if (!r.ok) {
+      const d = await r.json().catch(()=>({}));
+      showToast(d.error || 'Download failed.', true); return;
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${product}-client.jar`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── PASSWORD ────────────────────────────────────────────────────
+  async function changePassword() {
+    const pw   = document.getElementById('newPw').value;
+    const conf = document.getElementById('confPw').value;
+    clearEl('pwErr'); clearEl('pwOk');
+    if (!pw || pw.length < 8) return showErr('pwErr', 'Password must be at least 8 characters.');
+    if (pw !== conf) return showErr('pwErr', 'Passwords do not match.');
+    const r = await api('/auth/set-password', { method:'POST', body: {password: pw} });
+    if (!r.ok) return showErr('pwErr', r.data.error || 'Failed to update password.');
+    showOk('pwOk', 'Password updated successfully!');
+    document.getElementById('newPw').value = '';
+    document.getElementById('confPw').value = '';
+  }
+
+  // ── 2FA ─────────────────────────────────────────────────────────
+  function update2FAui() {
+    const enabled = tfa2FAEnabled;
+    setBadge('tfaBadge', enabled ? 'Enabled' : 'Disabled', enabled ? 'ok' : 'off');
+    setBadge('info2fa', enabled ? 'Enabled' : 'Disabled', enabled ? 'ok' : 'off');
+    document.getElementById('enable2faBtn').classList.toggle('hidden', enabled);
+    document.getElementById('disable2faBtn').classList.toggle('hidden', !enabled);
+  }
+
+  function generateSecret() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let s = '';
+    const arr = new Uint8Array(20);
+    crypto.getRandomValues(arr);
+    arr.forEach(b => s += chars[b % 32]);
+    return s;
+  }
+
+  function base32ToBytes(s) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = 0, val = 0;
+    const out = [];
+    for (const ch of s.replace(/=+$/,'')) {
+      val = (val << 5) | alphabet.indexOf(ch);
+      bits += 5;
+      if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; }
+    }
+    return new Uint8Array(out);
+  }
+
+  async function getTOTPCode(secret) {
+    const key = await crypto.subtle.importKey('raw', base32ToBytes(secret),
+      { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    const counter = Math.floor(Date.now() / 30000);
+    const buf = new ArrayBuffer(8);
+    new DataView(buf).setUint32(4, counter, false);
+    const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, buf));
+    const offset = sig[19] & 0xf;
+    const code = ((sig[offset] & 0x7f) << 24 | sig[offset+1] << 16 | sig[offset+2] << 8 | sig[offset+3]) % 1000000;
+    return code.toString().padStart(6, '0');
+  }
+
+  function openTfaModal() {
+    tfaSecret = generateSecret();
+    document.getElementById('secretDisplay').textContent = tfaSecret;
+
+    // Generate QR
+    const qrEl = document.getElementById('qrContainer');
+    qrEl.innerHTML = '';
+    const label = encodeURIComponent(`Amaxyl:${user?.username || 'user'}`);
+    const issuer = encodeURIComponent('Amaxyl');
+    const otpauthUrl = `otpauth://totp/${label}?secret=${tfaSecret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`;
+    try {
+      new QRCode(qrEl, { text: otpauthUrl, width: 152, height: 152, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    } catch(e) {
+      qrEl.innerHTML = `<div style="font-size:0.7rem;color:#000;text-align:center;padding:8px;word-break:break-all;">${otpauthUrl}</div>`;
+    }
+
+    goToStep(1);
+    document.getElementById('tfaModal').classList.add('open');
+  }
+
+  function closeTfaModal() {
+    document.getElementById('tfaModal').classList.remove('open');
+    clearEl('tfaErr');
+    document.querySelectorAll('.otp-input').forEach(i => i.value = '');
+  }
+
+  function goToStep1() { goToStep(1); }
+  function goToStep2() { goToStep(2); document.querySelector('.otp-input').focus(); }
+
+  function goToStep(n) {
+    currentStep = n;
+    ['tfaStep1','tfaStep2','tfaStep3'].forEach((id,i) => {
+      document.getElementById(id).classList.toggle('hidden', i+1 !== n);
+    });
+    [1,2,3].forEach(i => {
+      const el = document.getElementById('stepEl'+i);
+      el.classList.remove('active','done');
+      if (i < n) el.classList.add('done');
+      else if (i === n) el.classList.add('active');
+    });
+    clearEl('tfaErr');
+  }
+
+  async function verifyOtp() {
+    const inputs = document.querySelectorAll('.otp-input');
+    const code = [...inputs].map(i => i.value).join('');
+    if (code.length < 6) return showErr('tfaErr', 'Please enter all 6 digits.');
+
+    const expected = await getTOTPCode(tfaSecret);
+    // Allow ±1 window (30s)
+    const counterNow = Math.floor(Date.now() / 30000);
+    let valid = false;
+    for (const delta of [-1, 0, 1]) {
+      const c = counterNow + delta;
+      const buf = new ArrayBuffer(8);
+      new DataView(buf).setUint32(4, c, false);
+      const key = await crypto.subtle.importKey('raw', base32ToBytes(tfaSecret), { name:'HMAC', hash:'SHA-1' }, false, ['sign']);
+      const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, buf));
+      const offset = sig[19] & 0xf;
+      const hotp = ((sig[offset]&0x7f)<<24|sig[offset+1]<<16|sig[offset+2]<<8|sig[offset+3])%1000000;
+      if (hotp.toString().padStart(6,'0') === code) { valid = true; break; }
+    }
+
+    if (!valid) {
+      showErr('tfaErr', 'Incorrect code. Check your app and try again.');
+      document.querySelectorAll('.otp-input').forEach(i => i.value = '');
+      document.querySelector('.otp-input').focus();
+      return;
+    }
+
+    // Store 2FA state & secret locally
+    localStorage.setItem('amaxyl_2fa_' + user.id, JSON.stringify({ secret: tfaSecret, enabled: true }));
+    tfa2FAEnabled = true;
+    update2FAui();
+    goToStep(3);
+  }
+
+  function disable2fa() {
+    if (!confirm('Are you sure you want to remove 2FA from your account?')) return;
+    localStorage.removeItem('amaxyl_2fa_' + user.id);
+    tfa2FAEnabled = false;
+    update2FAui();
+    showToast('2FA has been disabled.');
+  }
+
+  function copySecret() {
+    navigator.clipboard.writeText(tfaSecret).then(() => showToast('Secret copied!'));
+  }
+
+  // ── OTP INPUT NAVIGATION ────────────────────────────────────────
+  function setupOtpInputs() {
+    const inputs = document.querySelectorAll('.otp-input');
+    inputs.forEach((inp, i) => {
+      inp.addEventListener('input', e => {
+        const v = e.target.value.replace(/\D/g,'');
+        e.target.value = v ? v[0] : '';
+        if (v && i < inputs.length - 1) inputs[i+1].focus();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i-1].focus();
+        if (e.key === 'ArrowLeft' && i > 0) inputs[i-1].focus();
+        if (e.key === 'ArrowRight' && i < inputs.length-1) inputs[i+1].focus();
+      });
+      inp.addEventListener('paste', e => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
+        text.split('').forEach((ch, j) => { if (inputs[i+j]) inputs[i+j].value = ch; });
+        if (inputs[Math.min(i + text.length, inputs.length-1)]) inputs[Math.min(i + text.length, inputs.length-1)].focus();
+      });
+    });
+  }
+
+  // ── UI HELPERS ──────────────────────────────────────────────────
+  function showErr(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return; el.textContent = msg; el.classList.add('show');
+  }
+  function showOk(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return; el.textContent = msg; el.classList.add('show');
+  }
+  function clearEl(id) {
+    const el = document.getElementById(id);
+    if (!el) return; el.textContent = ''; el.classList.remove('show');
+  }
+
+  function showToast(msg, err = false) {
+    const wrap = document.getElementById('toastWrap');
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.style.borderColor = err ? 'rgba(239,68,68,0.3)' : 'var(--border2)';
+    t.style.color = err ? '#fca5a5' : 'var(--text)';
+    t.textContent = (err ? '⚠ ' : '✓ ') + msg;
+    wrap.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(()=>t.remove(), 350); }, 3000);
+  }
+
+  // Keyboard submit
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (!document.getElementById('loginView').classList.contains('hidden')) doLogin();
+      if (!document.getElementById('registerView').classList.contains('hidden')) doRegister();
+    }
+    if (e.key === 'Escape') closeTfaModal();
+  });
+
+  // Click outside modal
+  document.getElementById('tfaModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('tfaModal')) closeTfaModal();
+  });
+</script>
+
+</body>
+</html>
