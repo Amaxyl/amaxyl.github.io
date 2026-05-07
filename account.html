@@ -854,12 +854,22 @@
 
   // ── API HELPERS ────────────────────────────────────────────────
   async function api(path, opts = {}) {
-    const res = await fetch(`${API}${path}`, {
-      ...opts,
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers||{}) },
-      body: opts.body ? (typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body)) : undefined
-    });
-    return { ok: res.ok, status: res.status, data: await res.json().catch(()=>({})) };
+    try {
+      const res = await fetch(`${API}${path}`, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          ...(opts.headers || {}),
+        },
+        body: opts.body ? (typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body)) : undefined,
+      });
+      return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
+    } catch (err) {
+      // Network error or worker unreachable
+      console.error('API error:', err);
+      return { ok: false, status: 0, data: { error: 'Cannot reach server. Check your connection.' } };
+    }
   }
 
   // ── NAVIGATION ─────────────────────────────────────────────────
@@ -961,7 +971,17 @@
   // ── DASHBOARD ──────────────────────────────────────────────────
   async function loadDashboard() {
     const r = await api('/auth/me');
-    if (!r.ok) { doLogout(); return; }
+    if (!r.ok) {
+      // If 401, token is expired/invalid — log out silently
+      if (r.status === 401 || r.status === 404) {
+        doLogout();
+      } else {
+        // Network error or server down — show error on login screen
+        show('loginView');
+        showErr('loginErr', r.data?.error || 'Could not connect to server.');
+      }
+      return;
+    }
     user = r.data;
     tfa2FAEnabled = !!localStorage.getItem('amaxyl_2fa_' + user.id);
 
