@@ -644,7 +644,7 @@
           <div class="access-grid" style="margin-bottom:0.75rem;">
             <!-- Kirk card -->
             <div class="access-card kirk">
-              <div class="access-card-logo" id="kirkCardLogo"><img src="https://iili.io/fkPS4Yg.png" alt="Kirk" id="kirkCardImg"></div>
+              <div class="access-card-logo"><img src="https://iili.io/fkPS4Yg.png" alt="Kirk"></div>
               <h3>Kirk Client</h3>
               <span id="kirkBadge" class="badge badge-off">Not active</span>
               <div class="access-actions">
@@ -667,7 +667,10 @@
           <!-- Subscription status hint -->
           <div id="subHintBar" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:0.6rem 1rem;margin-bottom:1.25rem;gap:1rem;flex-wrap:wrap;">
             <span id="subHintMsg" style="font-size:0.8rem;color:var(--muted);">Subscription status loaded from server.</span>
-            <button class="btn btn-outline btn-sm" onclick="refreshSubs()" id="subRefreshBtn">↻ Refresh</button>
+            <div style="display:flex;gap:0.5rem;flex-shrink:0;">
+              <button class="btn btn-outline btn-sm" onclick="debugSubs()" id="subDebugBtn" title="Test what the server sees for your Discord ID">🔍 Debug</button>
+              <button class="btn btn-outline btn-sm" onclick="refreshSubs()" id="subRefreshBtn">↻ Refresh</button>
+            </div>
           </div>
 
           <div class="panel">
@@ -1133,21 +1136,6 @@
     const discordStr = user.discord ? `${user.discord.username}` : 'Not linked';
     document.getElementById('infoDiscord').textContent = discordStr;
 
-    // Kirk card avatar — use Discord avatar if linked
-    const kirkImg = document.getElementById('kirkCardImg');
-    if (kirkImg) {
-      if (user.discord?.avatar) {
-        kirkImg.src = `https://cdn.discordapp.com/avatars/${user.discord.id}/${user.discord.avatar}.png?size=64`;
-        kirkImg.style.borderRadius = '50%';
-      } else if (user.discord) {
-        kirkImg.src = `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discord.id) % 5}.png`;
-        kirkImg.style.borderRadius = '50%';
-      } else {
-        kirkImg.src = 'https://iili.io/fkPS4Yg.png';
-        kirkImg.style.borderRadius = '';
-      }
-    }
-
     // Kirk
     const kirkActive = user.kirk_subscribed;
     setBadge('kirkBadge', kirkActive ? 'Active' : 'Not active', kirkActive ? 'ok' : 'off');
@@ -1224,6 +1212,43 @@
     if (msg) { msg.textContent = 'Refreshing subscription status…'; msg.style.color = 'var(--muted)'; }
     await loadDashboard();
     if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+  }
+
+  async function debugSubs() {
+    if (!user?.discord?.id) {
+      showToast('No Discord linked — cannot check subscription.', true);
+      return;
+    }
+    const btn = document.getElementById('subDebugBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '🔍 Testing…'; }
+    // Hit /auth/me and show the raw subscription fields the server returned
+    const r = await api('/auth/me');
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 Debug'; }
+    if (!r.ok) {
+      showToast('Server error: ' + (r.data?.error || r.status), true);
+      return;
+    }
+    const d = r.data;
+    const lines = [
+      `Discord: ${d.discord?.username} (${d.discord?.id})`,
+      `Kirk subscribed: ${d.kirk_subscribed} | tier: ${d.kirk_tier ?? 'null'}`,
+      `Ethane subscribed: ${d.ethane_subscribed} | tier: ${d.ethane_tier ?? 'null'}`,
+    ];
+    // Show a persistent debug panel below hint bar
+    let panel = document.getElementById('subDebugPanel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'subDebugPanel';
+      panel.style.cssText = 'background:rgba(0,0,0,0.4);border:1px solid var(--border2);border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.25rem;font-family:"DM Mono",monospace;font-size:0.75rem;color:var(--muted);line-height:1.8;';
+      document.getElementById('subHintBar').insertAdjacentElement('afterend', panel);
+    }
+    panel.innerHTML = '<span style="color:var(--faint);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;">Raw /auth/me response</span><br>' +
+      lines.map(l => {
+        const isActive = l.includes(': true');
+        const isInactive = l.includes(': false') || l.includes(': null');
+        const col = isActive ? 'var(--ok)' : isInactive ? '#ef4444' : 'var(--text)';
+        return `<span style="color:${col}">${l}</span>`;
+      }).join('<br>');
   }
 
   // ── REDEEM ─────────────────────────────────────────────────────
