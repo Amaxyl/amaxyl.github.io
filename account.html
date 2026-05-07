@@ -421,6 +421,33 @@
 
   <div class="toast-wrap" id="toastWrap"></div>
 
+  <!-- 2FA SIGN-IN CHALLENGE MODAL -->
+  <div class="modal-overlay" id="tfaLoginModal" role="dialog" aria-modal="true" aria-labelledby="tfaLoginTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="tfaLoginTitle">Two-Factor Authentication</h2>
+          <p>Enter the 6-digit code from your authenticator app</p>
+        </div>
+      </div>
+      <div style="text-align:center;margin-bottom:1.25rem;">
+        <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔐</div>
+        <p style="font-size:0.85rem;color:var(--muted);">Your account is protected with 2FA. Open your authenticator app and enter the code below.</p>
+      </div>
+      <div class="otp-wrap" id="loginOtpWrap">
+        <input class="otp-input login-otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-input login-otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-input login-otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-input login-otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-input login-otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-input login-otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      </div>
+      <div class="alert alert-err" id="tfaLoginErr"></div>
+      <button class="btn btn-accent btn-block" onclick="verifyLoginOtp()" style="margin-bottom:0.75rem;">Verify →</button>
+      <button class="btn btn-outline btn-block" onclick="cancelTfaLogin()">Cancel sign in</button>
+    </div>
+  </div>
+
   <!-- 2FA MODAL -->
   <div class="modal-overlay" id="tfaModal" role="dialog" aria-modal="true" aria-labelledby="tfaTitle">
     <div class="modal">
@@ -629,9 +656,10 @@
             <div class="access-card ethane">
               <div class="access-card-logo"><img src="https://iili.io/BZn9p0Q.png" alt="Ethane"></div>
               <h3>Ethane Client</h3>
-              <span class="badge badge-warn">Coming Soon</span>
+              <span id="ethaneBadge" class="badge badge-off">Not active</span>
               <div class="access-actions">
-                <span class="badge badge-warn" style="font-size:0.7rem;">Notify on launch</span>
+                <a href="https://discord.gg/yttpE8z636" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Join Discord</a>
+                <button class="btn btn-outline btn-sm" id="ethaneDlBtn" onclick="downloadClient('ethane')" disabled>Download</button>
               </div>
             </div>
           </div>
@@ -692,12 +720,20 @@
           </div>
           <div class="panel">
             <div class="panel-head">
-              <div><h2>Ethane Client</h2><p>Next-gen client · Coming soon</p></div>
-              <span class="badge badge-warn">Coming Soon</span>
+              <div><h2>Ethane Client</h2><p>Next-gen client · Minecraft Java</p></div>
+              <span id="ethaneBadge2" class="badge badge-off">Not active</span>
             </div>
-            <p style="font-size:0.88rem;color:var(--muted);">Ethane is in active development. Access will be managed through your Amaxyl account when it launches.</p>
-            <div style="margin-top:1rem;">
+            <div class="info-row">
+              <span class="info-key">Status</span>
+              <span class="info-val" id="ethaneStatus">No license found</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Tier</span>
+              <span class="info-val" id="ethaneTier">—</span>
+            </div>
+            <div style="margin-top:1.25rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
               <a href="https://discord.gg/yttpE8z636" target="_blank" rel="noopener" class="btn btn-outline">Join Discord for updates</a>
+              <button class="btn btn-accent" id="ethaneDlBtn2" onclick="downloadClient('ethane')" disabled>Download Ethane</button>
             </div>
           </div>
         </div>
@@ -831,10 +867,17 @@
     const cbToken = params.get('amaxyl_token');
     const cbErr   = params.get('error');
     if (cbToken) {
-      localStorage.setItem('amaxyl_token', cbToken);
-      token = cbToken;
-      // Clean URL without reloading
-      window.history.replaceState({}, '', window.location.pathname);
+      const userId = getJwtUserId(cbToken);
+      const tfa = userId ? localStorage.getItem('amaxyl_2fa_' + userId) : null;
+      if (tfa) {
+        _pendingToken = cbToken;
+        window.history.replaceState({}, '', window.location.pathname);
+        openTfaLoginModal();
+      } else {
+        localStorage.setItem('amaxyl_token', cbToken);
+        token = cbToken;
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
     if (cbErr) {
       // Show login first so the toast is visible
@@ -844,10 +887,11 @@
     }
 
     setupOtpInputs();
+    setupLoginOtpInputs();
 
-    if (token) {
+    if (token && !_pendingToken) {
       await loadDashboard();
-    } else {
+    } else if (!token && !_pendingToken) {
       show('loginView');
     }
   });
@@ -907,6 +951,9 @@
   }
 
   // ── AUTH ───────────────────────────────────────────────────────
+  // Pending token stored here during 2FA challenge
+  let _pendingToken = null;
+
   async function doLogin() {
     const username = document.getElementById('loginUser').value.trim();
     const password = document.getElementById('loginPass').value;
@@ -919,8 +966,92 @@
                 : (r.data?.error || 'Login failed.');
       return showErr('loginErr', msg);
     }
-    localStorage.setItem('amaxyl_token', r.data.token);
-    token = r.data.token;
+
+    // Decode user ID from JWT to check if 2FA is enabled for this account
+    const incomingToken = r.data.token;
+    const userId = getJwtUserId(incomingToken);
+    const tfa = userId ? localStorage.getItem('amaxyl_2fa_' + userId) : null;
+
+    if (tfa) {
+      // 2FA is enabled — hold the token and show challenge
+      _pendingToken = incomingToken;
+      openTfaLoginModal();
+    } else {
+      // No 2FA — proceed normally
+      localStorage.setItem('amaxyl_token', incomingToken);
+      token = incomingToken;
+      await loadDashboard();
+    }
+  }
+
+  // Decode sub (user id) from JWT payload without verification (client-side only, for 2FA check)
+  function getJwtUserId(jwt) {
+    try {
+      const parts = jwt.split('.');
+      if (parts.length !== 3) return null;
+      return JSON.parse(atob(parts[1])).sub || null;
+    } catch { return null; }
+  }
+
+  function openTfaLoginModal() {
+    document.querySelectorAll('.login-otp-input').forEach(i => i.value = '');
+    clearEl('tfaLoginErr');
+    document.getElementById('tfaLoginModal').classList.add('open');
+    setTimeout(() => document.querySelector('.login-otp-input')?.focus(), 100);
+  }
+
+  function cancelTfaLogin() {
+    _pendingToken = null;
+    document.getElementById('tfaLoginModal').classList.remove('open');
+    document.querySelectorAll('.login-otp-input').forEach(i => i.value = '');
+  }
+
+  async function verifyLoginOtp() {
+    const inputs = document.querySelectorAll('.login-otp-input');
+    const code = [...inputs].map(i => i.value).join('');
+    if (code.length < 6) return showErr('tfaLoginErr', 'Please enter all 6 digits.');
+
+    const userId = getJwtUserId(_pendingToken);
+    const tfaRaw = userId ? localStorage.getItem('amaxyl_2fa_' + userId) : null;
+    if (!tfaRaw) {
+      // 2FA data missing — just proceed
+      localStorage.setItem('amaxyl_token', _pendingToken);
+      token = _pendingToken;
+      _pendingToken = null;
+      document.getElementById('tfaLoginModal').classList.remove('open');
+      await loadDashboard();
+      return;
+    }
+
+    let tfaData;
+    try { tfaData = JSON.parse(tfaRaw); } catch { return showErr('tfaLoginErr', 'Corrupted 2FA data. Please re-enable 2FA.'); }
+
+    const secret = tfaData.secret;
+    const counterNow = Math.floor(Date.now() / 30000);
+    let valid = false;
+    for (const delta of [-1, 0, 1]) {
+      const c = counterNow + delta;
+      const buf = new ArrayBuffer(8);
+      new DataView(buf).setUint32(4, c, false);
+      const key = await crypto.subtle.importKey('raw', base32ToBytes(secret), { name:'HMAC', hash:'SHA-1' }, false, ['sign']);
+      const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, buf));
+      const offset = sig[19] & 0xf;
+      const hotp = ((sig[offset]&0x7f)<<24|sig[offset+1]<<16|sig[offset+2]<<8|sig[offset+3])%1000000;
+      if (hotp.toString().padStart(6,'0') === code) { valid = true; break; }
+    }
+
+    if (!valid) {
+      showErr('tfaLoginErr', 'Incorrect code. Check your app and try again.');
+      inputs.forEach(i => i.value = '');
+      document.querySelector('.login-otp-input')?.focus();
+      return;
+    }
+
+    // 2FA passed
+    localStorage.setItem('amaxyl_token', _pendingToken);
+    token = _pendingToken;
+    _pendingToken = null;
+    document.getElementById('tfaLoginModal').classList.remove('open');
     await loadDashboard();
   }
 
@@ -1005,6 +1136,17 @@
     ['kirkDlBtn','kirkDlBtn2'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.disabled = !kirkActive;
+    });
+
+    // Ethane
+    const ethaneActive = user.ethane_subscribed;
+    setBadge('ethaneBadge', ethaneActive ? 'Active' : 'Not active', ethaneActive ? 'ok' : 'off');
+    setBadge('ethaneBadge2', ethaneActive ? 'Active' : 'Not active', ethaneActive ? 'ok' : 'off');
+    document.getElementById('ethaneStatus').textContent = ethaneActive ? 'Active' : 'No license found';
+    document.getElementById('ethaneTier').textContent = user.ethane_tier || '—';
+    ['ethaneDlBtn','ethaneDlBtn2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = !ethaneActive;
     });
 
     // Discord tab
@@ -1225,6 +1367,33 @@
         const text = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
         text.split('').forEach((ch, j) => { if (inputs[i+j]) inputs[i+j].value = ch; });
         if (inputs[Math.min(i + text.length, inputs.length-1)]) inputs[Math.min(i + text.length, inputs.length-1)].focus();
+      });
+    });
+  }
+
+  function setupLoginOtpInputs() {
+    const inputs = document.querySelectorAll('.login-otp-input');
+    inputs.forEach((inp, i) => {
+      inp.addEventListener('input', e => {
+        const v = e.target.value.replace(/\D/g,'');
+        e.target.value = v ? v[0] : '';
+        if (v && i < inputs.length - 1) inputs[i+1].focus();
+        if (v && i === inputs.length - 1) verifyLoginOtp();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i-1].focus();
+        if (e.key === 'ArrowLeft' && i > 0) inputs[i-1].focus();
+        if (e.key === 'ArrowRight' && i < inputs.length-1) inputs[i+1].focus();
+        if (e.key === 'Enter') verifyLoginOtp();
+        if (e.key === 'Escape') cancelTfaLogin();
+      });
+      inp.addEventListener('paste', e => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
+        text.split('').forEach((ch, j) => { if (inputs[i+j]) inputs[i+j].value = ch; });
+        const last = Math.min(i + text.length, inputs.length-1);
+        if (inputs[last]) inputs[last].focus();
+        if (text.length === 6) verifyLoginOtp();
       });
     });
   }
