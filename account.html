@@ -813,8 +813,9 @@
 
 <script>
   // ── CONFIG ──────────────────────────────────────────────────────
-  const API = 'https://amaxyl-auth.lillykobusiness69.workers.dev';
-  const SITE = window.location.origin + window.location.pathname.replace('account.html','');
+  // IMPORTANT: Update this to your deployed worker URL (no trailing slash)
+  const API  = 'https://amaxyl-auth.lillykobusiness69.workers.dev';
+  const SITE = window.location.origin + window.location.pathname.replace(/account\.html.*$/, '');
 
   // ── STATE ──────────────────────────────────────────────────────
   let token = localStorage.getItem('amaxyl_token');
@@ -825,26 +826,30 @@
 
   // ── INIT ───────────────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', async () => {
-    // Handle OAuth callback token
-    const params = new URLSearchParams(window.location.search);
+    // Handle OAuth callback token injected by worker redirect
+    const params  = new URLSearchParams(window.location.search);
     const cbToken = params.get('amaxyl_token');
     const cbErr   = params.get('error');
     if (cbToken) {
       localStorage.setItem('amaxyl_token', cbToken);
       token = cbToken;
+      // Clean URL without reloading
       window.history.replaceState({}, '', window.location.pathname);
     }
     if (cbErr) {
+      // Show login first so the toast is visible
+      show('loginView');
       showToast('Discord login failed: ' + cbErr, true);
       window.history.replaceState({}, '', window.location.pathname);
     }
+
+    setupOtpInputs();
 
     if (token) {
       await loadDashboard();
     } else {
       show('loginView');
     }
-    setupOtpInputs();
   });
 
   // ── API HELPERS ────────────────────────────────────────────────
@@ -859,10 +864,24 @@
 
   // ── NAVIGATION ─────────────────────────────────────────────────
   function show(id) {
-    ['loginView','registerView','dashView'].forEach(v => {
-      const el = document.getElementById(v);
-      el.classList.toggle('hidden', v !== id);
-    });
+    // authView wraps all auth/login/register states; dashView is inside it
+    const authView = document.getElementById('authView');
+    const loginView    = document.getElementById('loginView');
+    const registerView = document.getElementById('registerView');
+    const dashView     = document.getElementById('dashView');
+
+    // Hide everything first
+    loginView.classList.add('hidden');
+    registerView.classList.add('hidden');
+    dashView.classList.add('hidden');
+    authView.classList.remove('hidden');
+
+    if (id === 'loginView')    loginView.classList.remove('hidden');
+    else if (id === 'registerView') registerView.classList.remove('hidden');
+    else if (id === 'dashView') {
+      // When showing dashboard, hide the auth-center containers
+      dashView.classList.remove('hidden');
+    }
   }
   function showRegister(e) { e?.preventDefault(); clearAlerts(); show('registerView'); }
   function showLogin(e)    { e?.preventDefault(); clearAlerts(); show('loginView'); }
@@ -881,9 +900,15 @@
   async function doLogin() {
     const username = document.getElementById('loginUser').value.trim();
     const password = document.getElementById('loginPass').value;
+    clearEl('loginErr');
     if (!username || !password) return showErr('loginErr', 'Please fill in all fields.');
     const r = await api('/auth/login', { method:'POST', body: {username, password} });
-    if (!r.ok) return showErr('loginErr', r.data.error || 'Login failed.');
+    if (!r.ok) {
+      const msg = r.status === 429 ? 'Too many attempts. Please wait a minute.'
+                : r.status === 401 ? 'Incorrect username or password.'
+                : (r.data?.error || 'Login failed.');
+      return showErr('loginErr', msg);
+    }
     localStorage.setItem('amaxyl_token', r.data.token);
     token = r.data.token;
     await loadDashboard();
@@ -893,9 +918,15 @@
     const username = document.getElementById('regUser').value.trim();
     const email    = document.getElementById('regEmail').value.trim();
     const password = document.getElementById('regPass').value;
+    clearEl('regErr');
     if (!username || !email || !password) return showErr('regErr', 'Please fill in all fields.');
     const r = await api('/auth/register', { method:'POST', body: {username, email, password} });
-    if (!r.ok) return showErr('regErr', r.data.error || 'Registration failed.');
+    if (!r.ok) {
+      const msg = r.status === 429 ? (r.data?.error || 'Too many attempts. Please wait.')
+                : r.status === 409 ? (r.data?.error || 'Username or email already in use.')
+                : (r.data?.error || 'Registration failed.');
+      return showErr('regErr', msg);
+    }
     localStorage.setItem('amaxyl_token', r.data.token);
     token = r.data.token;
     await loadDashboard();
@@ -903,6 +934,7 @@
 
   function discordLogin(e) {
     e?.preventDefault();
+    // Redirect to the worker's Discord OAuth entry point
     window.location.href = `${API}/auth/discord/login`;
   }
 
@@ -920,7 +952,9 @@
   function doLogout() {
     localStorage.removeItem('amaxyl_token');
     localStorage.removeItem('amaxyl_2fa');
-    token = null; user = null;
+    token = null;
+    user  = null;
+    tfa2FAEnabled = false;
     show('loginView');
   }
 
@@ -935,7 +969,9 @@
     document.getElementById('greetName').textContent = user.username;
     document.getElementById('infoUsername').textContent = user.username;
     document.getElementById('infoEmail').textContent = user.email || '—';
-    document.getElementById('infoJoined').textContent = new Date(user.createdAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    document.getElementById('infoJoined').textContent = user.createdAt
+      ? new Date(user.createdAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
+      : '—';
 
     const discordStr = user.discord ? `${user.discord.username}` : 'Not linked';
     document.getElementById('infoDiscord').textContent = discordStr;
